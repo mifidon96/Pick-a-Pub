@@ -1,0 +1,171 @@
+Step 1: Set Up the Next.js Project
+Install Next.js: Start by creating a new Next.js project. Open your terminal and run the following command:
+
+bash
+Copy code
+npx create-next-app pub-comparison
+cd pub-comparison
+Install Dependencies: Depending on your requirements, you might need additional libraries. For example, if you need to fetch data from an API, you might use Axios or similar libraries. For styling, you might use Tailwind CSS or styled-components.
+
+bash
+Copy code
+npm install axios
+npm install tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+Configure Tailwind CSS: If you’re using Tailwind CSS, add the following to your tailwind.config.js:
+
+javascript
+Copy code
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    './pages/**/*.{js,ts,jsx,tsx}',
+    './components/**/*.{js,ts,jsx,tsx}',
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+};
+And add the Tailwind directives to your styles/globals.css:
+
+css
+Copy code
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+Step 2: Create the Project Structure
+Organize your project with a structure like this:
+
+bash
+Copy code
+/pub-comparison
+  /components
+    PubCard.js
+    PubList.js
+    NavBar.js
+  /pages
+    /api
+      pubs.js
+    index.js
+  /styles
+  /public
+Step 3: Create Components
+PubCard Component: A card to display each pub’s details.
+
+jsx
+Copy code
+// components/PubCard.js
+const PubCard = ({ pub }) => {
+  return (
+    <div className="max-w-sm rounded overflow-hidden shadow-lg m-4">
+      <img className="w-full" src={pub.image} alt={pub.name} />
+      <div className="px-6 py-4">
+        <div className="font-bold text-xl mb-2">{pub.name}</div>
+        <p className="text-gray-700 text-base">
+          {pub.description}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default PubCard;
+PubList Component: A list to render multiple PubCard components.
+
+jsx
+Copy code
+// components/PubList.js
+import PubCard from './PubCard';
+
+const PubList = ({ pubs }) => {
+  return (
+    <div className="flex flex-wrap justify-center">
+      {pubs.map(pub => (
+        <PubCard key={pub.id} pub={pub} />
+      ))}
+    </div>
+  );
+};
+
+export default PubList;
+NavBar Component: A navigation bar for your site.
+
+jsx
+Copy code
+// components/NavBar.js
+const NavBar = () => {
+  return (
+    <nav className="flex items-center justify-between flex-wrap bg-teal-500 p-6">
+      <div className="flex items-center flex-shrink-0 text-white mr-6">
+        <span className="font-semibold text-xl tracking-tight">Pub Comparison</span>
+      </div>
+    </nav>
+  );
+};
+
+export default NavBar;
+Step 4: Create the Home Page
+Fetch Data: In a real-world scenario, you would fetch data from an API. Here, we’ll use static data for simplicity.
+
+jsx
+Copy code
+// pages/index.js
+import axios from 'axios';
+import { useState, useEffect } from 'react';
+import PubList from '../components/PubList';
+import NavBar from '../components/NavBar';
+
+const Home = () => {
+  const [pubs, setPubs] = useState([]);
+
+  useEffect(() => {
+    const fetchPubs = async () => {
+      const result = await axios('/api/pubs');
+      setPubs(result.data);
+    };
+
+    fetchPubs();
+  }, []);
+
+  return (
+    <div>
+      <NavBar />
+      <div className="container mx-auto">
+        <h1 className="text-4xl font-bold text-center my-8">Pub Comparison</h1>
+        <PubList pubs={pubs} />
+      </div>
+    </div>
+  );
+};
+
+export default Home;
+API Route: Create an API route to serve pub data.
+
+javascript
+Copy code
+// pages/api/pubs.js
+export default function handler(req, res) {
+  res.status(200).json([
+    {
+      id: 1,
+      name: 'The Red Lion',
+      description: 'A traditional pub with a friendly atmosphere.',
+      image: '/pub1.jpg'
+    },
+    {
+      id: 2,
+      name: 'The Crown',
+      description: 'A modern pub with a wide selection of drinks.',
+      image: '/pub2.jpg'
+    },
+    // Add more pub data here
+  ]);
+}
+Step 5: Run the Project
+Start your development server:
+
+bash
+Copy code
+npm run dev
+Open your browser and navigate to http://localhost:3000. You should see your pub comparison website with a list of pubs displayed.
