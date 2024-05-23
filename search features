@@ -1,0 +1,329 @@
+To add a feature where users can search for pubs that are rated highly for dates, we'll need to enhance the existing functionality with search and filtering capabilities based on specific criteria (e.g., rating for dates). Here’s how you can do it:
+
+Step 1: Update Pub Data
+First, ensure your pub data includes a rating for dates. Update your API route to include this information:
+
+javascript
+Copy code
+// pages/api/pubs.js
+export default function handler(req, res) {
+  res.status(200).json([
+    {
+      id: 1,
+      name: 'The Red Lion',
+      description: 'A traditional pub with a friendly atmosphere.',
+      image: '/pub1.jpg',
+      dateRating: 4.5 // Add this field
+    },
+    {
+      id: 2,
+      name: 'The Crown',
+      description: 'A modern pub with a wide selection of drinks.',
+      image: '/pub2.jpg',
+      dateRating: 4.8 // Add this field
+    },
+    // Add more pub data here
+  ]);
+}
+Step 2: Update PubCard Component
+Update the PubCard component to display the date rating:
+
+jsx
+Copy code
+// components/PubCard.js
+const PubCard = ({ pub }) => {
+  return (
+    <div className="max-w-sm rounded overflow-hidden shadow-lg m-4">
+      <img className="w-full" src={pub.image} alt={pub.name} />
+      <div className="px-6 py-4">
+        <div className="font-bold text-xl mb-2">{pub.name}</div>
+        <p className="text-gray-700 text-base">
+          {pub.description}
+        </p>
+        <p className="text-gray-600 text-sm">Date Rating: {pub.dateRating}</p> {/* Add this line */}
+      </div>
+    </div>
+  );
+};
+
+export default PubCard;
+Step 3: Create Search Component
+Create a SearchBar component to filter pubs based on the date rating:
+
+jsx
+Copy code
+// components/SearchBar.js
+import { useState } from 'react';
+
+const SearchBar = ({ onSearch }) => {
+  const [rating, setRating] = useState('');
+
+  const handleSearch = () => {
+    onSearch(rating);
+  };
+
+  return (
+    <div className="flex justify-center my-4">
+      <input
+        type="number"
+        placeholder="Minimum date rating"
+        value={rating}
+        onChange={(e) => setRating(e.target.value)}
+        className="border rounded py-2 px-4"
+      />
+      <button
+        onClick={handleSearch}
+        className="bg-teal-500 text-white py-2 px-4 rounded ml-2"
+      >
+        Search
+      </button>
+    </div>
+  );
+};
+
+export default SearchBar;
+Step 4: Update Home Page
+Integrate the SearchBar component and implement the search functionality:
+
+jsx
+Copy code
+// pages/index.js
+import axios from 'axios';
+import { useState, useEffect } from 'react';
+import PubList from '../components/PubList';
+import NavBar from '../components/NavBar';
+import SearchBar from '../components/SearchBar';
+
+const Home = () => {
+  const [pubs, setPubs] = useState([]);
+  const [filteredPubs, setFilteredPubs] = useState([]);
+
+  useEffect(() => {
+    const fetchPubs = async () => {
+      const result = await axios('/api/pubs');
+      setPubs(result.data);
+      setFilteredPubs(result.data); // Initialize with all pubs
+    };
+
+    fetchPubs();
+  }, []);
+
+  const handleSearch = (rating) => {
+    const filtered = pubs.filter(pub => pub.dateRating >= rating);
+    setFilteredPubs(filtered);
+  };
+
+  return (
+    <div>
+      <NavBar />
+      <div className="container mx-auto">
+        <h1 className="text-4xl font-bold text-center my-8">Pub Comparison</h1>
+        <SearchBar onSearch={handleSearch} />
+        <PubList pubs={filteredPubs} />
+      </div>
+    </div>
+  );
+};
+
+export default Home;
+Step 5: Styling Adjustments
+Ensure your styles accommodate the new elements. Update your styles/globals.css if needed.
+
+Final Steps
+Run the Development Server: Ensure everything works as expected:
+
+bash
+Copy code
+npm run dev
+Testing: Open your browser and navigate to http://localhost:3000. Use the search bar to filter pubs by date rating.
+
+Conclusion
+This guide adds a search feature that filters pubs based on their date rating. You can expand this further by including more advanced search and filtering options, such as location, price range, or specific amenities.
+
+add in a search page for pubs in the local area based on date rating, ability to watch sports and a slider for cosy-lively
+ChatGPT
+Adding a search page that allows users to filter pubs based on date rating, ability to watch sports, and a slider for cozy-lively involves several steps. Let's build this functionality step by step.
+
+Step 1: Update Pub Data
+First, ensure your pub data includes information about whether they show sports and a cozy-lively rating:
+
+javascript
+Copy code
+// pages/api/pubs.js
+export default function handler(req, res) {
+  res.status(200).json([
+    {
+      id: 1,
+      name: 'The Red Lion',
+      description: 'A traditional pub with a friendly atmosphere.',
+      image: '/pub1.jpg',
+      dateRating: 4.5,
+      showsSports: true,
+      cozyLivelyRating: 2 // 1: Cozy, 5: Lively
+    },
+    {
+      id: 2,
+      name: 'The Crown',
+      description: 'A modern pub with a wide selection of drinks.',
+      image: '/pub2.jpg',
+      dateRating: 4.8,
+      showsSports: false,
+      cozyLivelyRating: 4 // 1: Cozy, 5: Lively
+    },
+    // Add more pub data here
+  ]);
+}
+Step 2: Create a Search Page
+Create a new search page where users can filter pubs:
+
+jsx
+Copy code
+// pages/search.js
+import axios from 'axios';
+import { useState, useEffect } from 'react';
+import PubList from '../components/PubList';
+import NavBar from '../components/NavBar';
+
+const Search = () => {
+  const [pubs, setPubs] = useState([]);
+  const [filteredPubs, setFilteredPubs] = useState([]);
+  const [dateRating, setDateRating] = useState('');
+  const [showsSports, setShowsSports] = useState(false);
+  const [cozyLivelyRating, setCozyLivelyRating] = useState(3);
+
+  useEffect(() => {
+    const fetchPubs = async () => {
+      const result = await axios('/api/pubs');
+      setPubs(result.data);
+      setFilteredPubs(result.data); // Initialize with all pubs
+    };
+
+    fetchPubs();
+  }, []);
+
+  const handleSearch = () => {
+    const filtered = pubs.filter(pub => 
+      pub.dateRating >= dateRating &&
+      pub.showsSports === showsSports &&
+      pub.cozyLivelyRating === cozyLivelyRating
+    );
+    setFilteredPubs(filtered);
+  };
+
+  return (
+    <div>
+      <NavBar />
+      <div className="container mx-auto">
+        <h1 className="text-4xl font-bold text-center my-8">Search Pubs</h1>
+        <div className="flex justify-center my-4">
+          <input
+            type="number"
+            placeholder="Minimum date rating"
+            value={dateRating}
+            onChange={(e) => setDateRating(e.target.value)}
+            className="border rounded py-2 px-4"
+          />
+          <label className="ml-4">
+            <input
+              type="checkbox"
+              checked={showsSports}
+              onChange={(e) => setShowsSports(e.target.checked)}
+              className="mr-2"
+            />
+            Shows Sports
+          </label>
+          <label className="ml-4 flex items-center">
+            Cozy-Lively Rating
+            <input
+              type="range"
+              min="1"
+              max="5"
+              value={cozyLivelyRating}
+              onChange={(e) => setCozyLivelyRating(parseInt(e.target.value))}
+              className="ml-2"
+            />
+            <span className="ml-2">{cozyLivelyRating}</span>
+          </label>
+          <button
+            onClick={handleSearch}
+            className="bg-teal-500 text-white py-2 px-4 rounded ml-2"
+          >
+            Search
+          </button>
+        </div>
+        <PubList pubs={filteredPubs} />
+      </div>
+    </div>
+  );
+};
+
+export default Search;
+Step 3: Add Navigation to the Search Page
+Update the NavBar component to include a link to the search page:
+
+jsx
+Copy code
+// components/NavBar.js
+import Link from 'next/link';
+
+const NavBar = () => {
+  return (
+    <nav className="flex items-center justify-between flex-wrap bg-teal-500 p-6">
+      <div className="flex items-center flex-shrink-0 text-white mr-6">
+        <span className="font-semibold text-xl tracking-tight">Pub Comparison</span>
+      </div>
+      <div>
+        <Link href="/">
+          <a className="text-white mr-4">Home</a>
+        </Link>
+        <Link href="/search">
+          <a className="text-white">Search</a>
+        </Link>
+      </div>
+    </nav>
+  );
+};
+
+export default NavBar;
+Step 4: Ensure Routing Works
+Next.js will handle the routing automatically as long as you have the pages/search.js file. You can navigate to the search page using the link added in the NavBar.
+
+Step 5: Styling Adjustments
+Ensure that your styles accommodate the new elements. Update your styles/globals.css if needed. Here’s an example of how you might want to style the range input:
+
+css
+Copy code
+/* styles/globals.css */
+
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  background: transparent;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 25px;
+  width: 25px;
+  border-radius: 50%;
+  background: #4caf50;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  height: 25px;
+  width: 25px;
+  border-radius: 50%;
+  background: #4caf50;
+  cursor: pointer;
+}
+Final Steps
+Run the Development Server: Ensure everything works as expected:
+
+bash
+Copy code
+npm run dev
+Testing: Open your browser and navigate to http://localhost:3000. Use the navigation link to go to the search page and test the search functionality.
+
+Conclusion
+This guide adds a search page that allows users to filter pubs based on date rating, ability to watch sports, and a cozy-lively rating slider. You can expand this further by adding more advanced search and filtering options, such as location, price range, or specific amenities.
