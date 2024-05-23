@@ -1,0 +1,73 @@
+Creating a database for pub comparison based on the criteria of a cosy-lively scale, the ability to watch sports games, and a date night rating involves designing a schema that can efficiently store and query these aspects. Here’s a possible SQL schema for such a database:
+
+Database Schema
+Pubs: Stores basic information about each pub.
+Ratings: Stores ratings for each pub on different criteria.
+SQL Schema Definition
+sql
+Copy code
+-- Create Pubs Table
+CREATE TABLE Pubs (
+    pub_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    address VARCHAR(255),
+    phone_number VARCHAR(20)
+);
+
+-- Create Ratings Table
+CREATE TABLE Ratings (
+    rating_id INT AUTO_INCREMENT PRIMARY KEY,
+    pub_id INT,
+    cosy_lively_scale INT CHECK (cosy_lively_scale BETWEEN 1 AND 10),
+    can_watch_sports BOOLEAN,
+    date_night_rating INT CHECK (date_night_rating BETWEEN 1 AND 10),
+    FOREIGN KEY (pub_id) REFERENCES Pubs(pub_id)
+);
+Example Data Insertion
+To demonstrate how this database can be used, here are some sample inserts for both tables:
+
+sql
+Copy code
+-- Insert into Pubs Table
+INSERT INTO Pubs (name, address, phone_number) VALUES
+('The Cozy Corner', '123 Main St', '555-1234'),
+('Sports Bar Central', '456 Sports Ave', '555-5678'),
+('Romantic Retreat', '789 Love Ln', '555-9012');
+
+-- Insert into Ratings Table
+INSERT INTO Ratings (pub_id, cosy_lively_scale, can_watch_sports, date_night_rating) VALUES
+(1, 9, FALSE, 7),  -- The Cozy Corner
+(2, 4, TRUE, 3),   -- Sports Bar Central
+(3, 7, FALSE, 10); -- Romantic Retreat
+Sample Queries
+To retrieve information about pubs based on different criteria, you can use queries like these:
+
+Pubs with a high cosy-lively scale:
+sql
+Copy code
+SELECT Pubs.name, Ratings.cosy_lively_scale
+FROM Pubs
+JOIN Ratings ON Pubs.pub_id = Ratings.pub_id
+WHERE Ratings.cosy_lively_scale > 8;
+Pubs where you can watch sports:
+sql
+Copy code
+SELECT Pubs.name, Ratings.can_watch_sports
+FROM Pubs
+JOIN Ratings ON Pubs.pub_id = Ratings.pub_id
+WHERE Ratings.can_watch_sports = TRUE;
+Pubs with a high date night rating:
+sql
+Copy code
+SELECT Pubs.name, Ratings.date_night_rating
+FROM Pubs
+JOIN Ratings ON Pubs.pub_id = Ratings.pub_id
+WHERE Ratings.date_night_rating > 8;
+All information about pubs:
+sql
+Copy code
+SELECT Pubs.name, Pubs.address, Pubs.phone_number, 
+       Ratings.cosy_lively_scale, Ratings.can_watch_sports, Ratings.date_night_rating
+FROM Pubs
+JOIN Ratings ON Pubs.pub_id = Ratings.pub_id;
+This schema design allows you to effectively store and retrieve pub information based on the given criteria. You can further expand the database by adding more attributes or tables as needed.
