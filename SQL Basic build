@@ -1,0 +1,72 @@
+Sure, here's a basic SQL table schema for pubs based on the provided attributes:
+
+sql
+Copy code
+CREATE TABLE Pubs (
+    PubID INT PRIMARY KEY AUTO_INCREMENT,
+    PubName VARCHAR(100) NOT NULL,
+    IsCosy BOOLEAN,
+    IsTraditional BOOLEAN,
+    ShowsSports BOOLEAN,
+    IsGoodForDate BOOLEAN
+);
+This table will have the following columns:
+
+PubID: An auto-incremented unique identifier for each pub.
+PubName: The name of the pub.
+IsCosy: A boolean value indicating whether the pub is cosy (true or false).
+IsTraditional: A boolean value indicating whether the pub is traditional (true or false).
+ShowsSports: A boolean value indicating whether the pub shows sports (true or false).
+IsGoodForDate: A boolean value indicating whether the pub is good for a date (true or false).
+You can then insert data into this table for each pub, specifying the values for each attribute accordingly. For example:
+
+sql
+Copy code
+INSERT INTO Pubs (PubName, IsCosy, IsTraditional, ShowsSports, IsGoodForDate) VALUES
+('The Red Lion', true, true, false, true),
+('The Rose & Crown', true, true, true, true),
+('The Sportsman', false, false, true, false);
+This would insert three pubs into the table, each with their respective attributes.
+
+create a filter for users to seach for pubs based on distance
+ChatGPT
+To create a filter for users to search for pubs based on distance, you'll need to consider the geographical coordinates (latitude and longitude) of the pubs and the user's location. Here's a basic example of how you could implement this in SQL using the Haversine formula to calculate the distance between two points on the Earth's surface:
+
+sql
+Copy code
+CREATE FUNCTION Distance(lat1 DECIMAL(10, 8), lon1 DECIMAL(11, 8), lat2 DECIMAL(10, 8), lon2 DECIMAL(11, 8)) RETURNS DECIMAL(10, 2)
+BEGIN
+    DECLARE R DECIMAL(10, 2);
+    DECLARE dLat DECIMAL(10, 8);
+    DECLARE dLon DECIMAL(11, 8);
+    DECLARE a DECIMAL(10, 2);
+    DECLARE c DECIMAL(10, 2);
+    
+    SET R = 6371; -- Earth's radius in kilometers
+    SET dLat = RADIANS(lat2 - lat1);
+    SET dLon = RADIANS(lon2 - lon1);
+    
+    SET a = SIN(dLat / 2) * SIN(dLat / 2) + COS(RADIANS(lat1)) * COS(RADIANS(lat2)) * SIN(dLon / 2) * SIN(dLon / 2);
+    SET c = 2 * ATAN2(SQRT(a), SQRT(1 - a));
+    
+    RETURN R * c;
+END;
+This SQL function calculates the distance between two geographical points specified by their latitude and longitude coordinates.
+
+Then, you can use this function in your SQL queries to filter pubs based on distance. Here's an example query:
+
+sql
+Copy code
+SELECT 
+    PubID, 
+    PubName, 
+    IsCosy, 
+    IsTraditional, 
+    ShowsSports, 
+    IsGoodForDate,
+    Distance(latitude, longitude, :user_lat, :user_lon) AS DistanceInKm
+FROM 
+    Pubs
+WHERE 
+    Distance(latitude, longitude, :user_lat, :user_lon) <= :max_distance_km;
+In this query, :user_lat and :user_lon are placeholders for the user's latitude and longitude, and :max_distance_km is a placeholder for the maximum distance the user is willing to travel in kilometers. The Distance function calculates the distance between the user's location and each pub, and the WHERE clause filters the results to only include pubs within the specified maximum distance.
