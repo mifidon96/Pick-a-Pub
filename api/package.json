@@ -1,0 +1,21 @@
+{
+  "name": "pickapub-api",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "esbuild src/lambda.ts src/local.ts src/admin-cli.ts --bundle --platform=node --target=node22 --format=cjs --loader:.sql=text --external:pg-native --outdir=dist && mkdir -p dist/lambda && cp dist/lambda.js dist/lambda/index.js",
+    "dev": "npm run build && node dist/local.js",
+    "admin": "npm run build --silent && node dist/admin-cli.js"
+  },
+  "dependencies": {
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.145",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.10",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}
