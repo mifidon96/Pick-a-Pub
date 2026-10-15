@@ -21,10 +21,23 @@ export function Stars({ value, size = "text-base" }: { value: number; size?: str
 
 export function RatingBadge({ pub }: { pub: Pub }) {
   const n = pub.review_count ?? 0;
-  if (pub.stars === null) {
+  if (n === 0 || pub.score === null) {
     return (
       <div className="rounded-lg border border-dashed border-line px-2 py-2 text-center text-xs text-muted">
-        {n === 0 ? "No reviews yet" : <>New<br />{n} review{n === 1 ? "" : "s"}</>}
+        No reviews yet
+      </div>
+    );
+  }
+  if (pub.stars === null) {
+    // Fewer than 3 reviews: show the score, but make clear it is early days.
+    const early = Math.round(pub.score * 2) / 2;
+    return (
+      <div className="rounded-lg border border-dashed border-pitch/40 bg-card px-2 py-2 text-center text-pitch">
+        <div className="text-2xl font-bold leading-none">{early.toFixed(1)}</div>
+        <div className="mt-1"><Stars value={early} size="text-xs" /></div>
+        <div className="mt-1 text-[11px] leading-tight text-muted">
+          Early score<br />{n} review{n === 1 ? "" : "s"}
+        </div>
       </div>
     );
   }
