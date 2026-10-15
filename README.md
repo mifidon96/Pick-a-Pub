@@ -63,7 +63,7 @@ star rating.
 
 Edit the file, then `./scripts/deploy.sh --skip-pubs`. The file is the source of
 truth: remove a pub from it and its verdict is removed from the site. Mistakes
-(unknown pub, bad rating) stop the deploy step and change nothing. To check the
+(bad rating, unknown field) stop the deploy step and change nothing. Names are matched loosely ("The Regent" = "Regent"); a name that matches no pub is skipped with a warning in the deploy output. To check the
 file without deploying: `cd api && npm run admin -- content-json ../content/pubs.yaml /tmp/out.json`.
 
 ## Layout
