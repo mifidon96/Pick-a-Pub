@@ -1,0 +1,4 @@
+[
+  { "id": "balham", "label": "Balham", "lat": 51.4431, "lng": -0.1525, "import_radius_m": 1500 },
+  { "id": "reading", "label": "Reading", "lat": 51.4551, "lng": -0.9787, "import_radius_m": 3000 }
+]

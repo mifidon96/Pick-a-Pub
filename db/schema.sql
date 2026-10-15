@@ -17,6 +17,10 @@ create table if not exists pubs (
   unique (source, source_id)
 );
 
+-- Extra details from OpenStreetMap: opening_hours, website, phone, operator,
+-- beer_garden, food, real_ale, wheelchair, shows_sport. Shape set by scripts/osm-to-pub.mjs.
+alter table pubs add column if not exists info jsonb not null default '{}'::jsonb;
+
 create index if not exists pubs_geo_idx on pubs using gist (ll_to_earth(lat, lng));
 
 create table if not exists users (

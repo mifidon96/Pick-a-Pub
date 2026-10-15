@@ -15,7 +15,22 @@ export type PubInput = {
   postcode?: string | null;
   lat: number;
   lng: number;
+  info?: Record<string, unknown>;
 };
+
+// Only these keys are stored, each a short string or a boolean.
+const INFO_KEYS = ["opening_hours", "website", "phone", "operator", "beer_garden", "food", "real_ale", "wheelchair", "shows_sport"];
+function cleanInfo(info: unknown): Record<string, string | boolean> {
+  const out: Record<string, string | boolean> = {};
+  if (typeof info !== "object" || info === null) return out;
+  for (const k of INFO_KEYS) {
+    const v = (info as Record<string, unknown>)[k];
+    if (typeof v === "boolean") out[k] = v;
+    else if (typeof v === "string" && v.trim()) out[k] = v.trim().slice(0, 300);
+  }
+  if (typeof out.website === "string" && !/^https?:\/\//i.test(out.website)) delete out.website;
+  return out;
+}
 
 export async function runAdmin(event: AdminEvent): Promise<unknown> {
   if (event.action === "migrate") {
@@ -29,12 +44,12 @@ export async function runAdmin(event: AdminEvent): Promise<unknown> {
     for (const p of event.pubs) {
       if (!p.source || !p.source_id || !p.name || !Number.isFinite(p.lat) || !Number.isFinite(p.lng)) continue;
       await db().query(
-        `insert into pubs (source, source_id, name, address, postcode, lat, lng)
-         values ($1, $2, $3, $4, $5, $6, $7)
+        `insert into pubs (source, source_id, name, address, postcode, lat, lng, info)
+         values ($1, $2, $3, $4, $5, $6, $7, $8)
          on conflict (source, source_id) do update
            set name = excluded.name, address = excluded.address, postcode = excluded.postcode,
-               lat = excluded.lat, lng = excluded.lng`,
-        [p.source, p.source_id, p.name, p.address ?? null, p.postcode ?? null, p.lat, p.lng],
+               lat = excluded.lat, lng = excluded.lng, info = excluded.info`,
+        [p.source, p.source_id, p.name, p.address ?? null, p.postcode ?? null, p.lat, p.lng, JSON.stringify(cleanInfo(p.info))],
       );
       upserted++;
     }

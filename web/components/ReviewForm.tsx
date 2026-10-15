@@ -56,7 +56,7 @@ export default function ReviewForm({ pubId, existing, onSaved }: Props) {
 
   return (
     <form onSubmit={submit} className="space-y-5 rounded-xl border border-line bg-card p-4">
-      <h2 className="font-semibold">{existing ? "Update your review" : "Rate this pub for football"}</h2>
+      <h2 className="font-semibold">How was it for watching football?</h2>
 
       <div className="space-y-3">
         {SCORE_KEYS.map((k) => (

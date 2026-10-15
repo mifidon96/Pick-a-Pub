@@ -49,6 +49,21 @@ export type Pub = Scores & Facts & {
   review_count: number | null;
 };
 
+// Details imported from OpenStreetMap. Any field can be missing.
+export type PubInfo = {
+  opening_hours?: string;
+  website?: string;
+  phone?: string;
+  operator?: string;
+  beer_garden?: boolean;
+  food?: boolean;
+  real_ale?: boolean;
+  wheelchair?: "yes" | "limited" | "no";
+  shows_sport?: boolean;
+};
+
+export type PubDetail = Pub & { info: PubInfo };
+
 export type Vibe = "calm" | "lively";
 export const VIBE_LABELS = ["Very calm", "Calm", "Mixed", "Lively", "Very lively"] as const;
 export function vibeLabel(v: number | null): string | null {
@@ -87,7 +102,7 @@ export function listPubs(lat: number, lng: number, radiusM: number, sort: "stars
 }
 
 export function getPub(id: number) {
-  return request<{ pub: Pub; reviews: Review[] }>(`/pubs/${id}`);
+  return request<{ pub: PubDetail; reviews: Review[] }>(`/pubs/${id}`);
 }
 
 // Signed-in only: the caller's own review of this pub, if they have one.

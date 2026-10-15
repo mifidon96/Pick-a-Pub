@@ -42,6 +42,17 @@ python3 scripts/survey_weights.py responses.csv > weights.sql
 # then run weights.sql against the database
 ```
 
+## Areas
+
+Pubs are imported per area from OpenStreetMap. Areas are listed in
+`web/lib/areas.json` (currently Balham and Reading), which also drives the area
+picker on the site. To add one, add an entry (centre and import radius) and
+redeploy without `--skip-pubs`.
+
+Each pub page shows details from OpenStreetMap where listed: opening hours,
+website, phone, food, beer garden, real ale, wheelchair access, plus a
+directions link. Reviews are on a separate page, `/pub/review/?id=`.
+
 ## Layout
 
 | Folder | What it is |
@@ -97,7 +108,7 @@ The first run asks for a sign-in page prefix (e.g. `pickapub-morgan`) and takes
 
 1. builds the API and runs `terraform apply` (Terraform shows the plan and asks again)
 2. creates the database tables
-3. imports Balham pubs from OpenStreetMap
+3. imports pubs for every area in `web/lib/areas.json` from OpenStreetMap
 4. builds the site with the live API and sign-in settings, uploads it to S3 and clears the CloudFront cache
 5. prints the site URL
 

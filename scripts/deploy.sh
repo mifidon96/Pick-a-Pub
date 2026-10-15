@@ -68,7 +68,7 @@ tmp="$(mktemp)"; echo '{"action":"migrate"}' > "$tmp"
 admin_invoke "$tmp"; rm -f "$tmp"
 
 if [[ "$SKIP_PUBS" == false ]]; then
-  step "Importing Balham pubs from OpenStreetMap"
+  step "Importing pubs for every area from OpenStreetMap"
   (cd "$ROOT" && node scripts/import-osm-pubs.mjs)
   admin_invoke "$ROOT/pubs.json"
 fi

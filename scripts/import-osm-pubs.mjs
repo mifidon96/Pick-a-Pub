@@ -2,46 +2,50 @@
 // Fetch pubs from OpenStreetMap (free, no API key) and write pubs.json in the
 // shape the admin "import_pubs" action expects.
 //
-//   node scripts/import-osm-pubs.mjs                       # Balham, 1.2 km
-//   node scripts/import-osm-pubs.mjs 51.4613 -0.1156 1500  # anywhere else
+//   node scripts/import-osm-pubs.mjs            # every area in web/lib/areas.json
+//   node scripts/import-osm-pubs.mjs reading    # one area
 //
+// To add an area, add it to web/lib/areas.json (it also appears in the site's area picker).
 // Data is © OpenStreetMap contributors (ODbL). Keep the credit in the site footer.
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { osmToPub } from "./osm-to-pub.mjs";
 
-const [lat = "51.4431", lng = "-0.1525", radius = "1200", out = "pubs.json"] = process.argv.slice(2);
-
-const query = `[out:json][timeout:25];
-nwr[amenity~"^(pub|bar)$"][name](around:${Number(radius)},${Number(lat)},${Number(lng)});
-out center tags;`;
-
-const res = await fetch("https://overpass-api.de/api/interpreter", {
-  method: "POST",
-  headers: { "content-type": "application/x-www-form-urlencoded", "user-agent": "pick-a-pub-import/0.1" },
-  body: new URLSearchParams({ data: query }),
-});
-if (!res.ok) {
-  console.error(`Overpass returned ${res.status}. It rate limits heavily, so wait a minute and retry.`);
+const areas = JSON.parse(readFileSync(new URL("../web/lib/areas.json", import.meta.url), "utf8"));
+const only = process.argv[2];
+const chosen = only ? areas.filter((a) => a.id === only) : areas;
+if (!chosen.length) {
+  console.error(`Unknown area "${only}". Known: ${areas.map((a) => a.id).join(", ")}`);
   process.exit(1);
 }
 
-const { elements } = await res.json();
-const pubs = elements
-  .map((e) => {
-    const t = e.tags ?? {};
-    const street = [t["addr:housenumber"], t["addr:street"]].filter(Boolean).join(" ");
-    return {
-      source: "osm",
-      source_id: `${e.type}/${e.id}`,
-      name: t.name,
-      address: street || null,
-      postcode: t["addr:postcode"] ?? null,
-      lat: e.lat ?? e.center?.lat,
-      lng: e.lon ?? e.center?.lon,
-    };
-  })
-  .filter((p) => p.name && Number.isFinite(p.lat) && Number.isFinite(p.lng))
-  .sort((a, b) => a.name.localeCompare(b.name));
+async function fetchArea(a, attempt = 1) {
+  const query = `[out:json][timeout:60];
+nwr[amenity~"^(pub|bar)$"][name](around:${Number(a.import_radius_m)},${Number(a.lat)},${Number(a.lng)});
+out center tags;`;
+  const res = await fetch("https://overpass-api.de/api/interpreter", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded", "user-agent": "pick-a-pub-import/0.2" },
+    body: new URLSearchParams({ data: query }),
+  });
+  if ((res.status === 429 || res.status >= 500) && attempt < 4) {
+    console.log(`  Overpass busy (${res.status}), retrying in ${attempt * 20}s...`);
+    await new Promise((r) => setTimeout(r, attempt * 20_000));
+    return fetchArea(a, attempt + 1);
+  }
+  if (!res.ok) throw new Error(`Overpass returned ${res.status} for ${a.label}`);
+  return (await res.json()).elements;
+}
 
+const byId = new Map();
+for (const a of chosen) {
+  const pubs = (await fetchArea(a))
+    .map(osmToPub)
+    .filter((p) => p.name && Number.isFinite(p.lat) && Number.isFinite(p.lng));
+  console.log(`${a.label}: ${pubs.length} pubs`);
+  for (const p of pubs) byId.set(p.source_id, p);
+}
+
+const pubs = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
 // The admin Lambda takes { action, pubs } as its whole payload.
-writeFileSync(out, JSON.stringify({ action: "import_pubs", pubs }, null, 2));
-console.log(`Wrote ${pubs.length} pubs to ${out}`);
+writeFileSync("pubs.json", JSON.stringify({ action: "import_pubs", pubs }, null, 2));
+console.log(`Wrote ${pubs.length} pubs to pubs.json`);

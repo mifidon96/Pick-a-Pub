@@ -82,7 +82,7 @@ async function listPubs(req: Req): Promise<Res> {
 // GET /pubs/{id}
 async function getPub(id: number): Promise<Res> {
   const pub = await db().query(
-    `select p.id, p.name, p.address, p.postcode, p.lat, p.lng, ${SCORE_COLS}
+    `select p.id, p.name, p.address, p.postcode, p.lat, p.lng, p.info, ${SCORE_COLS}
        from pubs p left join pub_scores s on s.pub_id = p.id
       where p.id = $1`,
     [id],

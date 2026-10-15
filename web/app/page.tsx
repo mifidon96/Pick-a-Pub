@@ -1,18 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { listPubs, type Pub, type Vibe } from "@/lib/api";
 import { FactChips, RatingBadge } from "@/components/Scores";
+import AREAS from "@/lib/areas.json";
 
-// Launch area. Used until the visitor shares their location.
-const BALHAM = { lat: 51.4431, lng: -0.1525, label: "Balham" };
-
-type Centre = typeof BALHAM;
+// Areas with imported pubs (web/lib/areas.json). The first is the default.
+type Centre = { lat: number; lng: number; label: string; areaId?: string };
+const AREA_CENTRES: Centre[] = AREAS.map((a) => ({ lat: a.lat, lng: a.lng, label: a.label, areaId: a.id }));
+const DEFAULT_CENTRE = AREA_CENTRES[0]!;
 type Sort = "stars" | "distance";
 
+// The chosen area lives in the URL (/?area=reading) so "Back" and shared links keep it.
 export default function Home() {
-  const [centre, setCentre] = useState<Centre>(BALHAM);
+  return (
+    <Suspense fallback={<p className="text-sm text-muted">Loading...</p>}>
+      <PubSearch />
+    </Suspense>
+  );
+}
+
+function PubSearch() {
+  const router = useRouter();
+  const areaParam = useSearchParams().get("area");
+  const [centre, setCentre] = useState<Centre>(() => AREA_CENTRES.find((a) => a.areaId === areaParam) ?? DEFAULT_CENTRE);
   const [sort, setSort] = useState<Sort>("stars");
   const [radius, setRadius] = useState(3000);
   const [vibe, setVibe] = useState<Vibe | "">("");
@@ -45,7 +58,7 @@ export default function Home() {
         setLocating(false);
       },
       () => {
-        setLocError("Could not get your location. Showing Balham.");
+        setLocError(`Could not get your location. Showing ${centre.label}.`);
         setLocating(false);
       },
       { timeout: 10_000 },
@@ -63,11 +76,25 @@ export default function Home() {
         <button onClick={useMyLocation} disabled={locating} className="rounded bg-pitch px-3 py-2 font-medium text-white disabled:opacity-60">
           {locating ? "Locating..." : "Use my location"}
         </button>
-        {centre !== BALHAM && (
-          <button onClick={() => setCentre(BALHAM)} className="rounded border border-line bg-card px-3 py-2">
-            Back to Balham
-          </button>
-        )}
+        <label className="flex items-center gap-1">
+          <span className="text-muted">Area</span>
+          <select
+            value={centre.areaId ?? ""}
+            onChange={(e) => {
+              const a = AREA_CENTRES.find((x) => x.areaId === e.target.value);
+              if (a) {
+                setCentre(a);
+                router.replace(`/?area=${a.areaId}`, { scroll: false });
+              }
+            }}
+            className="rounded border border-line bg-card px-2 py-2"
+          >
+            {!centre.areaId && <option value="">My location</option>}
+            {AREA_CENTRES.map((a) => (
+              <option key={a.areaId} value={a.areaId}>{a.label}</option>
+            ))}
+          </select>
+        </label>
         <label className="ml-auto flex items-center gap-1">
           <span className="text-muted">Within</span>
           <select value={radius} onChange={(e) => setRadius(Number(e.target.value))} className="rounded border border-line bg-card px-2 py-2">
