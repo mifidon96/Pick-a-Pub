@@ -6,6 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import { getPub, SCORE_KEYS, SCORE_LABELS, type PubDetail, type PubInfo, type Review } from "@/lib/api";
 import { FactChips, RatingBadge, ScoreBars } from "@/components/Scores";
 import ShareButton from "@/components/ShareButton";
+import { VerdictPanel } from "@/components/Verdict";
 
 // Pub details: info, ratings and reviews. Reviewing happens on /pub/review/?id=.
 // The id is a query parameter so the whole site can be a static export.
@@ -63,6 +64,8 @@ function PubDetailView() {
         <ShareButton pub={pub} />
       </div>
 
+      {pub.verdict && <VerdictPanel verdict={pub.verdict} />}
+
       <InfoCard pub={pub} />
 
       <section className="space-y-3 rounded-xl border border-line bg-card p-4">
@@ -101,24 +104,44 @@ function PubDetailView() {
           </article>
         ))}
       </section>
+
+      <p className="text-xs text-muted">Pub ID: {pub.ref}</p>
     </div>
   );
 }
 
+// Shown in this order. Values are text or yes/no.
+const INFO_ROWS: [keyof PubInfo, string][] = [
+  ["opening_hours", "Opening hours"],
+  ["screens", "Screens"],
+  ["food", "Food"],
+  ["drinks", "Drinks"],
+  ["beer_garden", "Beer garden"],
+  ["booking", "Booking"],
+  ["real_ale", "Real ale"],
+  ["wheelchair", "Wheelchair access"],
+  ["shows_sport", "Sport on TV"],
+  ["operator", "Run by"],
+  ["notes", "Notes"],
+];
+
 function InfoCard({ pub }: { pub: PubDetail }) {
   const info: PubInfo = pub.info ?? {};
   const directions = `https://www.google.com/maps/dir/?api=1&destination=${pub.lat},${pub.lng}`;
-  const yesNo = (v: boolean | undefined) => (v === undefined ? null : v ? "Yes" : "No");
   const rows: [string, React.ReactNode][] = [];
 
-  if (info.opening_hours) rows.push(["Opening hours", <span key="h" className="whitespace-pre-line">{formatHours(info.opening_hours)}</span>]);
-  if (info.operator) rows.push(["Run by", info.operator]);
-  if (yesNo(info.food)) rows.push(["Food", yesNo(info.food)]);
-  if (yesNo(info.beer_garden)) rows.push(["Beer garden", yesNo(info.beer_garden)]);
-  if (yesNo(info.real_ale)) rows.push(["Real ale", yesNo(info.real_ale)]);
-  if (info.wheelchair) rows.push(["Wheelchair access", { yes: "Yes", limited: "Limited", no: "No" }[info.wheelchair]]);
-  if (info.shows_sport) rows.push(["Sport on TV", "Listed as showing sport"]);
-  if (info.phone) rows.push(["Phone", <a key="p" href={`tel:${info.phone.replace(/\s+/g, "")}`} className="text-pitch underline">{info.phone}</a>]);
+  for (const [key, label] of INFO_ROWS) {
+    const v = info[key];
+    if (v === undefined || v === "") continue;
+    if (typeof v === "boolean") rows.push([label, v ? "Yes" : "No"]);
+    else if (key === "opening_hours") rows.push([label, <span key={key} className="whitespace-pre-line">{formatHours(v)}</span>]);
+    else if (key === "wheelchair") rows.push([label, ({ yes: "Yes", limited: "Limited", no: "No" } as Record<string, string>)[v] ?? v]);
+    else rows.push([label, v]);
+  }
+  if (typeof info.phone === "string") {
+    rows.push(["Phone", <a key="p" href={`tel:${info.phone.replace(/\s+/g, "")}`} className="text-pitch underline">{info.phone}</a>]);
+  }
+  const website = typeof info.website === "string" && /^https?:\/\//.test(info.website) ? info.website : null;
 
   return (
     <section className="space-y-3 rounded-xl border border-line bg-card p-4">
@@ -137,11 +160,11 @@ function InfoCard({ pub }: { pub: PubDetail }) {
       )}
       <div className="flex flex-wrap gap-3 text-sm">
         <a href={directions} target="_blank" rel="noopener noreferrer" className="text-pitch underline">Directions</a>
-        {info.website && (
-          <a href={info.website} target="_blank" rel="noopener noreferrer nofollow" className="text-pitch underline">Website</a>
+        {website && (
+          <a href={website} target="_blank" rel="noopener noreferrer nofollow" className="text-pitch underline">Website</a>
         )}
       </div>
-      <p className="text-xs text-muted">Details from OpenStreetMap, so check with the pub before you go.</p>
+      <p className="text-xs text-muted">Details from Pick-a-Pub and OpenStreetMap, so check with the pub before you go.</p>
     </section>
   );
 }

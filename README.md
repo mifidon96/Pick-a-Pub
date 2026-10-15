@@ -53,6 +53,19 @@ Each pub page shows details from OpenStreetMap where listed: opening hours,
 website, phone, food, beer garden, real ale, wheelchair access, plus a
 directions link. Reviews are on a separate page, `/pub/review/?id=`.
 
+## Pick-a-Pub verdicts
+
+Our own reviews live in `content/pubs.yaml`: a rating (1 to 5 in halves), summary,
+best for, tip and visit date, plus pub details (screens, food, booking, hours...)
+that override OpenStreetMap. They show as a "Pick-a-Pub verdict" panel on the pub
+page and an "Our verdict" badge in the list, and are never part of the customer
+star rating.
+
+Edit the file, then `./scripts/deploy.sh --skip-pubs`. The file is the source of
+truth: remove a pub from it and its verdict is removed from the site. Mistakes
+(unknown pub, bad rating) stop the deploy step and change nothing. To check the
+file without deploying: `cd api && npm run admin -- content-json ../content/pubs.yaml /tmp/out.json`.
+
 ## Layout
 
 | Folder | What it is |

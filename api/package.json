@@ -9,7 +9,8 @@
     "admin": "npm run build --silent && node dist/admin-cli.js"
   },
   "dependencies": {
-    "pg": "^8.13.0"
+    "pg": "^8.13.0",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.145",

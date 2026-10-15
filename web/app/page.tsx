@@ -6,6 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import { listPubs, type Pub, type Vibe } from "@/lib/api";
 import { FactChips, RatingBadge } from "@/components/Scores";
 import AREAS from "@/lib/areas.json";
+import { VerdictChip } from "@/components/Verdict";
 
 // Areas with imported pubs (web/lib/areas.json). The first is the default.
 type Centre = { lat: number; lng: number; label: string; areaId?: string };
@@ -144,6 +145,7 @@ function PubSearch() {
                       {pub.address && <> · {pub.address}</>}
                     </p>
                   </div>
+                  {pub.verdict_rating != null && <VerdictChip rating={pub.verdict_rating} />}
                   <FactChips pub={pub} />
                 </div>
               </Link>

@@ -66,9 +66,11 @@ async function listPubs(req: Req): Promise<Res> {
   const { rows } = await db().query(
     `select p.id, p.name, p.address, p.postcode, p.lat, p.lng,
             round(earth_distance(ll_to_earth($1, $2), ll_to_earth(p.lat, p.lng)))::int as distance_m,
+            e.rating::float8 as verdict_rating,
             ${SCORE_COLS}
        from pubs p
        left join pub_scores s on s.pub_id = p.id
+       left join pub_editorial e on e.pub_id = p.id
       where earth_box(ll_to_earth($1, $2), $3) @> ll_to_earth(p.lat, p.lng)
         and earth_distance(ll_to_earth($1, $2), ll_to_earth(p.lat, p.lng)) <= $3
         ${vibe}
@@ -82,8 +84,16 @@ async function listPubs(req: Req): Promise<Res> {
 // GET /pubs/{id}
 async function getPub(id: number): Promise<Res> {
   const pub = await db().query(
-    `select p.id, p.name, p.address, p.postcode, p.lat, p.lng, p.info, ${SCORE_COLS}
-       from pubs p left join pub_scores s on s.pub_id = p.id
+    `select p.id, p.name, p.address, p.postcode, p.lat, p.lng,
+            p.source || ':' || p.source_id as ref,
+            p.info || coalesce(e.about, '{}'::jsonb) as info,
+            case when e.rating is not null then json_build_object(
+              'rating', e.rating::float8, 'summary', e.summary, 'best_for', e.best_for,
+              'tip', e.tip, 'visited', e.visited) end as verdict,
+            ${SCORE_COLS}
+       from pubs p
+       left join pub_scores s on s.pub_id = p.id
+       left join pub_editorial e on e.pub_id = p.id
       where p.id = $1`,
     [id],
   );

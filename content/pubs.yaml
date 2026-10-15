@@ -1,0 +1,36 @@
+# Pick-a-Pub verdicts and pub details.
+#
+# Edit this file, then deploy with:  AWS_PROFILE=sandpit ./scripts/deploy.sh --skip-pubs
+# This file is the source of truth: removing a pub here removes its verdict from the site.
+# Verdicts are shown on their own and are never part of the customer star rating.
+#
+# Pick the pub either by its ID (shown at the bottom of each pub page on the site):
+#   - pub: "osm:node/123456789"
+# or by its exact name and area (balham or reading, from web/lib/areas.json):
+#   - name: "The Bedford"
+#     area: balham
+#
+# about: (all optional, overrides OpenStreetMap)
+#   opening_hours, screens, food, drinks, beer_garden (true/false), booking,
+#   real_ale (true/false), wheelchair, website (https://...), phone, operator, notes
+#
+# verdict: rating is required (1 to 5, halves allowed), the rest is optional
+#   summary (400 chars), best_for (80), tip (250), visited (YYYY-MM)
+#
+# Example (remove the # signs to use it):
+#
+# - name: "The Bedford"
+#   area: balham
+#   about:
+#     screens: "6 screens plus a projector upstairs"
+#     food: "Burgers and wings until 9pm"
+#     beer_garden: false
+#     booking: "Book online for big games"
+#   verdict:
+#     rating: 4.5
+#     summary: "Best spot in Balham for a big game. Loud, packed and every seat has a view."
+#     best_for: "Big games with a group"
+#     tip: "Get there 45 minutes early and head upstairs."
+#     visited: "2026-10"
+
+[]

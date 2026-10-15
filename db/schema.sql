@@ -180,3 +180,18 @@ select a.*,
 from agg a
 join overall o using (pub_id)
 cross join s;
+
+-- ---------------------------------------------------------------------------
+-- Pick-a-Pub's own verdicts and pub details (content/pubs.yaml)
+-- Kept apart from customer reviews: never part of the star rating.
+-- ---------------------------------------------------------------------------
+create table if not exists pub_editorial (
+  pub_id      integer primary key references pubs(id) on delete cascade,
+  about       jsonb not null default '{}'::jsonb,   -- overrides the OpenStreetMap details in pubs.info
+  rating      numeric(2,1) check (rating between 1 and 5 and rating * 2 = round(rating * 2)),
+  summary     text check (char_length(summary) <= 400),
+  best_for    text check (char_length(best_for) <= 80),
+  tip         text check (char_length(tip) <= 250),
+  visited     text check (visited ~ '^\d{4}-\d{2}$'),  -- YYYY-MM
+  updated_at  timestamptz not null default now()
+);

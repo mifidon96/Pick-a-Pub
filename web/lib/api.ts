@@ -39,6 +39,7 @@ export type Pub = Scores & Facts & {
   stars: number | null; // null until a pub has enough reviews
   score: number | null; // unrounded rating behind the stars
   vibe: number | null; // 1 calm ... 5 lively
+  verdict_rating?: number | null; // Pick-a-Pub's own rating, if we have reviewed it
   id: number;
   name: string;
   address: string | null;
@@ -49,20 +50,24 @@ export type Pub = Scores & Facts & {
   review_count: number | null;
 };
 
-// Details imported from OpenStreetMap. Any field can be missing.
-export type PubInfo = {
-  opening_hours?: string;
-  website?: string;
-  phone?: string;
-  operator?: string;
-  beer_garden?: boolean;
-  food?: boolean;
-  real_ale?: boolean;
-  wheelchair?: "yes" | "limited" | "no";
-  shows_sport?: boolean;
+// Pub details: from OpenStreetMap, overridden by Pick-a-Pub's own (content/pubs.yaml).
+// Any field can be missing; text or yes/no.
+export type PubInfo = Partial<Record<
+  | "opening_hours" | "screens" | "food" | "drinks" | "beer_garden" | "booking" | "real_ale"
+  | "wheelchair" | "website" | "phone" | "operator" | "notes" | "shows_sport",
+  string | boolean
+>>;
+
+// Pick-a-Pub's own review. Separate from, and never part of, the customer stars.
+export type Verdict = {
+  rating: number;
+  summary: string | null;
+  best_for: string | null;
+  tip: string | null;
+  visited: string | null; // YYYY-MM
 };
 
-export type PubDetail = Pub & { info: PubInfo };
+export type PubDetail = Pub & { ref: string; info: PubInfo; verdict: Verdict | null };
 
 export type Vibe = "calm" | "lively";
 export const VIBE_LABELS = ["Very calm", "Calm", "Mixed", "Lively", "Very lively"] as const;
