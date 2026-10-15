@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  FACT_KEYS, FACT_LABELS, SCORE_KEYS, SCORE_LABELS, putReview,
+  FACT_KEYS, FACT_LABELS, SCORE_KEYS, SCORE_LABELS, VIBE_LABELS, putReview,
   type FactKey, type Review, type ReviewInput, type ScoreKey,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -15,6 +15,7 @@ export default function ReviewForm({ pubId, existing, onSaved }: Props) {
     existing ? Object.fromEntries(SCORE_KEYS.map((k) => [k, existing[k]])) : {},
   );
   const [food, setFood] = useState<number | null>(existing?.food ?? null);
+  const [vibe, setVibe] = useState<number | null>(existing?.vibe ?? null);
   const [facts, setFacts] = useState<Partial<Record<FactKey, boolean>>>(() => {
     // Carry over earlier answers so an update does not wipe them.
     const prev: Partial<Record<FactKey, boolean>> = {};
@@ -34,14 +35,16 @@ export default function ReviewForm({ pubId, existing, onSaved }: Props) {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (missing.length) {
-      setError(`Score every category first: ${missing.map((k) => SCORE_LABELS[k].label).join(", ")}`);
+    if (missing.length || !vibe) {
+      const names = missing.map((k) => SCORE_LABELS[k].label);
+      if (!vibe) names.push("Vibe");
+      setError(`Score every category first: ${names.join(", ")}`);
       return;
     }
     setSaving(true);
     setError("");
     try {
-      const input = { ...(scores as Record<ScoreKey, number>), ...facts, food, display_name: displayName, match_label: matchLabel, comment } satisfies ReviewInput;
+      const input = { ...(scores as Record<ScoreKey, number>), ...facts, food, vibe, display_name: displayName, match_label: matchLabel, comment } satisfies ReviewInput;
       await putReview(pubId, input, headers);
       onSaved();
     } catch (err) {
@@ -60,6 +63,26 @@ export default function ReviewForm({ pubId, existing, onSaved }: Props) {
           <Picker key={k} label={SCORE_LABELS[k].label} hint={SCORE_LABELS[k].hint} value={scores[k] ?? null} onChange={(v) => setScores((s) => ({ ...s, [k]: v ?? undefined }))} />
         ))}
         <Picker label={SCORE_LABELS.food.label} hint={SCORE_LABELS.food.hint} value={food} onChange={setFood} clearable />
+      </div>
+
+      <div className="space-y-2">
+        <div className="text-sm">
+          <div className="font-medium">Vibe</div>
+          <div className="text-xs text-muted">Not a score: some people want calm, some want loud</div>
+        </div>
+        <div className="grid grid-cols-5 gap-1" role="group" aria-label="Vibe">
+          {VIBE_LABELS.map((label, i) => (
+            <button
+              key={label}
+              type="button"
+              aria-pressed={vibe === i + 1}
+              onClick={() => setVibe(i + 1)}
+              className={`rounded border px-1 py-2 text-xs ${vibe === i + 1 ? "border-pitch bg-pitch text-white" : "border-line bg-chalk"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <fieldset className="space-y-2">

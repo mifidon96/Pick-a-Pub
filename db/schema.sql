@@ -25,22 +25,26 @@ create table if not exists users (
   created_at    timestamptz not null default now()
 );
 
--- One review per user per pub. Scores are 1 to 5.
+-- One review per user per pub.
 create table if not exists reviews (
   id          integer generated always as identity primary key,
   pub_id      integer not null references pubs(id) on delete cascade,
   user_id     text    not null references users(id) on delete cascade,
 
-  tvs         smallint not null check (tvs between 1 and 5),         -- size and quality
-  sightlines  smallint not null check (sightlines between 1 and 5),  -- can you see a screen from most seats
-  atmosphere  smallint not null check (atmosphere between 1 and 5),
-  seating     smallint not null check (seating between 1 and 5),     -- getting a seat on match day
-  drinks      smallint not null check (drinks between 1 and 5),      -- price and range
-  service     smallint not null check (service between 1 and 5),     -- half-time queue
-  food        smallint check (food between 1 and 5),                 -- null = did not eat
+  -- Scored 1 to 5. These feed the star rating.
+  sightlines     smallint not null check (sightlines between 1 and 5),     -- see a screen from your seat
+  crowd          smallint not null check (crowd between 1 and 5),          -- there to watch, not too packed
+  screens        smallint not null check (screens between 1 and 5),        -- size and picture quality
+  seating        smallint not null check (seating between 1 and 5),        -- getting a seat
+  commentary     smallint not null check (commentary between 1 and 5),     -- sound on and audible
+  service_speed  smallint not null check (service_speed between 1 and 5),  -- the half-time queue
+  drink_prices   smallint not null check (drink_prices between 1 and 5),   -- value for money
+
+  -- Shown but not part of the stars.
+  food  smallint check (food between 1 and 5),                             -- null = did not eat
+  vibe  smallint not null check (vibe between 1 and 5),                    -- 1 calm ... 5 lively
 
   -- Facts. null = reviewer did not know.
-  sound_on        boolean,
   shows_sky       boolean,
   shows_tnt       boolean,
   shows_amazon    boolean,
@@ -50,7 +54,7 @@ create table if not exists reviews (
   family_friendly boolean,
   step_free       boolean,
 
-  match_label text check (char_length(match_label) <= 80),           -- e.g. "Arsenal v Spurs"
+  match_label text check (char_length(match_label) <= 80),                 -- e.g. "Arsenal v Spurs"
   comment     text check (char_length(comment) <= 500),
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
@@ -59,37 +63,116 @@ create table if not exists reviews (
 
 create index if not exists reviews_pub_idx on reviews (pub_id, updated_at desc);
 
--- Aggregated scores per pub.
--- Overall is weighted towards what matters for watching a match. Food is shown but not counted.
--- A fact is true when at least half of the reviewers who answered said yes.
+-- ---------------------------------------------------------------------------
+-- Star rating
+-- ---------------------------------------------------------------------------
+
+-- How much each category counts. Generated from the survey by
+-- scripts/survey_weights.py. "do nothing" keeps any weights loaded since.
+create table if not exists rating_weights (
+  category text primary key
+    check (category in ('sightlines','crowd','screens','seating','commentary','service_speed','drink_prices')),
+  weight   numeric(4,2) not null check (weight > 0)
+);
+
+insert into rating_weights (category, weight) values
+  ('sightlines', 0.19),
+  ('screens', 0.15),
+  ('crowd', 0.15),
+  ('seating', 0.13),
+  ('commentary', 0.13),
+  ('service_speed', 0.13),
+  ('drink_prices', 0.12)
+on conflict (category) do nothing;
+
+-- Tuning knobs, one row.
+create table if not exists rating_settings (
+  id              boolean primary key default true check (id),
+  prior_reviews   numeric not null default 3,    -- smoothing: pretend every pub has this many "average" reviews
+  half_life_days  numeric not null default 365,  -- a review counts half as much after this long
+  min_reviews     integer not null default 3,    -- show stars from this many reviews
+  sightline_cap   numeric not null default 1     -- overall can be at most this far above sightlines
+);
+insert into rating_settings default values on conflict (id) do nothing;
+
+-- Per pub: plain averages for display, plus the star rating.
+--  1. Each review is weighted by age (half-life decay).
+--  2. Each category is smoothed towards the average across all pubs.
+--  3. Overall = weighted sum of the smoothed categories.
+--  4. Overall is capped at sightlines + sightline_cap.
+--  5. Stars = overall rounded to the nearest half, once a pub has min_reviews.
 create or replace view pub_scores as
-select
-  pub_id,
-  count(*)::int                                 as review_count,
-  round(avg(tvs), 1)::float8                    as tvs,
-  round(avg(sightlines), 1)::float8             as sightlines,
-  round(avg(atmosphere), 1)::float8             as atmosphere,
-  round(avg(seating), 1)::float8                as seating,
-  round(avg(drinks), 1)::float8                 as drinks,
-  round(avg(service), 1)::float8                as service,
-  round(avg(food), 1)::float8                   as food,
-  round(
-      avg(tvs)        * 0.25
-    + avg(sightlines) * 0.20
-    + avg(atmosphere) * 0.20
-    + avg(seating)    * 0.15
-    + avg(drinks)     * 0.10
-    + avg(service)    * 0.10
-  , 1)::float8                                  as overall,
-  avg(sound_on::int)        >= 0.5              as sound_on,
-  avg(shows_sky::int)       >= 0.5              as shows_sky,
-  avg(shows_tnt::int)       >= 0.5              as shows_tnt,
-  avg(shows_amazon::int)    >= 0.5              as shows_amazon,
-  avg(bookable::int)        >= 0.5              as bookable,
-  avg(outdoor_screen::int)  >= 0.5              as outdoor_screen,
-  avg(away_friendly::int)   >= 0.5              as away_friendly,
-  avg(family_friendly::int) >= 0.5              as family_friendly,
-  avg(step_free::int)       >= 0.5              as step_free,
-  max(updated_at)                               as last_reviewed_at
-from reviews
-group by pub_id;
+with s as (select * from rating_settings),
+weighted as (
+  select r.*,
+         power(0.5, extract(epoch from (now() - r.updated_at)) / 86400.0 / s.half_life_days) as w
+  from reviews r cross join s
+),
+long as (
+  select wt.pub_id, wt.w, c.category, c.score
+  from weighted wt
+  cross join lateral (values
+    ('sightlines', wt.sightlines), ('crowd', wt.crowd), ('screens', wt.screens),
+    ('seating', wt.seating), ('commentary', wt.commentary),
+    ('service_speed', wt.service_speed), ('drink_prices', wt.drink_prices)
+  ) as c(category, score)
+),
+prior as (
+  select category, sum(w * score) / nullif(sum(w), 0) as mean
+  from long group by category
+),
+smoothed as (
+  select l.pub_id, l.category,
+         (s.prior_reviews * p.mean + sum(l.w * l.score)) / (s.prior_reviews + sum(l.w)) as score
+  from long l
+  join prior p using (category)
+  cross join s
+  group by l.pub_id, l.category, s.prior_reviews, p.mean
+),
+-- The cap uses the pub's own (unsmoothed) sightline average: if its reviewers
+-- say they could not see the screen, the area average should not rescue it.
+own_sightlines as (
+  select pub_id, sum(w * score) / sum(w) as sightlines
+  from long where category = 'sightlines' group by pub_id
+),
+overall as (
+  select sm.pub_id,
+         sum(sm.score * rw.weight) / sum(rw.weight) as raw,
+         os.sightlines
+  from smoothed sm
+  join rating_weights rw using (category)
+  join own_sightlines os using (pub_id)
+  group by sm.pub_id, os.sightlines
+),
+agg as (
+  select pub_id,
+    count(*)::int                                     as review_count,
+    round(avg(sightlines), 1)::float8                 as sightlines,
+    round(avg(crowd), 1)::float8                      as crowd,
+    round(avg(screens), 1)::float8                    as screens,
+    round(avg(seating), 1)::float8                    as seating,
+    round(avg(commentary), 1)::float8                 as commentary,
+    round(avg(service_speed), 1)::float8              as service_speed,
+    round(avg(drink_prices), 1)::float8               as drink_prices,
+    round(avg(food), 1)::float8                       as food,
+    round(avg(vibe), 1)::float8                       as vibe,
+    -- A fact is true when at least half of the reviewers who answered said yes.
+    avg(shows_sky::int)       >= 0.5                  as shows_sky,
+    avg(shows_tnt::int)       >= 0.5                  as shows_tnt,
+    avg(shows_amazon::int)    >= 0.5                  as shows_amazon,
+    avg(bookable::int)        >= 0.5                  as bookable,
+    avg(outdoor_screen::int)  >= 0.5                  as outdoor_screen,
+    avg(away_friendly::int)   >= 0.5                  as away_friendly,
+    avg(family_friendly::int) >= 0.5                  as family_friendly,
+    avg(step_free::int)       >= 0.5                  as step_free,
+    max(updated_at)                                   as last_reviewed_at
+  from reviews group by pub_id
+)
+select a.*,
+  round(least(o.raw, o.sightlines + s.sightline_cap)::numeric, 2)::float8 as score,
+  case when a.review_count >= s.min_reviews
+       then (round(least(o.raw, o.sightlines + s.sightline_cap) * 2) / 2)::float8
+  end                                                                    as stars
+from agg a
+join overall o using (pub_id)
+cross join s;

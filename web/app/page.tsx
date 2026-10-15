@@ -2,33 +2,34 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { listPubs, type Pub } from "@/lib/api";
-import { FactChips, OverallBadge } from "@/components/Scores";
+import { listPubs, type Pub, type Vibe } from "@/lib/api";
+import { FactChips, RatingBadge } from "@/components/Scores";
 
 // Launch area. Used until the visitor shares their location.
 const BALHAM = { lat: 51.4431, lng: -0.1525, label: "Balham" };
 
 type Centre = typeof BALHAM;
-type Sort = "score" | "distance";
+type Sort = "stars" | "distance";
 
 export default function Home() {
   const [centre, setCentre] = useState<Centre>(BALHAM);
-  const [sort, setSort] = useState<Sort>("score");
-  const [radius, setRadius] = useState(1500);
+  const [sort, setSort] = useState<Sort>("stars");
+  const [radius, setRadius] = useState(3000);
+  const [vibe, setVibe] = useState<Vibe | "">("");
   const [result, setResult] = useState<{ key: string; pubs?: Pub[]; error?: string }>({ key: "" });
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState("");
 
-  const key = `${centre.lat},${centre.lng},${radius},${sort}`;
+  const key = `${centre.lat},${centre.lng},${radius},${sort},${vibe}`;
   useEffect(() => {
     let live = true;
-    listPubs(centre.lat, centre.lng, radius, sort)
+    listPubs(centre.lat, centre.lng, radius, sort, vibe)
       .then((r) => live && setResult({ key, pubs: r.pubs }))
       .catch((e: Error) => live && setResult({ key, error: e.message }));
     return () => {
       live = false;
     };
-  }, [centre, radius, sort, key]);
+  }, [centre, radius, sort, vibe, key]);
   const loading = result.key !== key;
 
   function useMyLocation() {
@@ -70,17 +71,25 @@ export default function Home() {
         <label className="ml-auto flex items-center gap-1">
           <span className="text-muted">Within</span>
           <select value={radius} onChange={(e) => setRadius(Number(e.target.value))} className="rounded border border-line bg-card px-2 py-2">
-            <option value={500}>500 m</option>
             <option value={1000}>1 km</option>
-            <option value={1500}>1.5 km</option>
             <option value={3000}>3 km</option>
+            <option value={5000}>5 km</option>
+            <option value={10000}>10 km</option>
           </select>
         </label>
         <label className="flex items-center gap-1">
           <span className="text-muted">Sort</span>
           <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} className="rounded border border-line bg-card px-2 py-2">
-            <option value="score">Best for football</option>
+            <option value="stars">Best for football</option>
             <option value="distance">Nearest</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-1">
+          <span className="text-muted">Vibe</span>
+          <select value={vibe} onChange={(e) => setVibe(e.target.value as Vibe | "")} className="rounded border border-line bg-card px-2 py-2">
+            <option value="">Any</option>
+            <option value="calm">Calm</option>
+            <option value="lively">Lively</option>
           </select>
         </label>
       </div>
@@ -89,7 +98,7 @@ export default function Home() {
       {loading && <p className="text-sm text-muted">Loading pubs...</p>}
       {!loading && result.error && <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{result.error}</p>}
       {!loading && result.pubs?.length === 0 && (
-        <p className="rounded border border-line bg-card p-4 text-sm">No pubs listed within this distance yet. Try a wider search.</p>
+        <p className="rounded border border-line bg-card p-4 text-sm">No pubs match. Try a wider search{vibe ? " or any vibe" : ""}.</p>
       )}
 
       <ul className="space-y-3">
@@ -98,7 +107,7 @@ export default function Home() {
             <li key={pub.id}>
               <Link href={`/pub/?id=${pub.id}`} className="flex gap-4 rounded-xl border border-line bg-card p-4 hover:border-pitch">
                 <div className="w-20 shrink-0">
-                  <OverallBadge pub={pub} />
+                  <RatingBadge pub={pub} />
                 </div>
                 <div className="min-w-0 flex-1 space-y-2">
                   <div>

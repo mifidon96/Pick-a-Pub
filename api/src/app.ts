@@ -9,9 +9,10 @@ export type Req = {
 };
 export type Res = { status: number; body: unknown };
 
-const SCORES = ["tvs", "sightlines", "atmosphere", "seating", "drinks", "service"] as const;
+// Scored categories that feed the star rating (see db/schema.sql, pub_scores).
+const SCORES = ["sightlines", "crowd", "screens", "seating", "commentary", "service_speed", "drink_prices"] as const;
 const FACTS = [
-  "sound_on", "shows_sky", "shows_tnt", "shows_amazon", "bookable",
+  "shows_sky", "shows_tnt", "shows_amazon", "bookable",
   "outdoor_screen", "away_friendly", "family_friendly", "step_free",
 ] as const;
 
@@ -45,16 +46,22 @@ function text(v: unknown, name: string, max: number): string | null {
   return t || null;
 }
 
-const SCORE_COLS = `s.review_count, s.overall, s.tvs, s.sightlines, s.atmosphere, s.seating, s.drinks, s.service, s.food,
-  s.sound_on, s.shows_sky, s.shows_tnt, s.shows_amazon, s.bookable, s.outdoor_screen,
+const SCORE_COLS = `s.review_count, s.stars, s.score, ${SCORES.map((k) => `s.${k}`).join(", ")}, s.food, s.vibe,
+  s.shows_sky, s.shows_tnt, s.shows_amazon, s.bookable, s.outdoor_screen,
   s.away_friendly, s.family_friendly, s.step_free, s.last_reviewed_at`;
 
-// GET /pubs?lat=&lng=&radius_m=&sort=score|distance
+// GET /pubs?lat=&lng=&radius_m=&sort=stars|distance&vibe=calm|lively
 async function listPubs(req: Req): Promise<Res> {
   const lat = num(req.query.lat, "lat", -90, 90);
   const lng = num(req.query.lng, "lng", -180, 180);
-  const radius = num(req.query.radius_m, "radius_m", 100, 5000, 1500);
-  const order = req.query.sort === "distance" ? "distance_m" : "s.overall desc nulls last, distance_m";
+  const radius = num(req.query.radius_m, "radius_m", 100, 10000, 3000);
+  // Rated pubs first (by stars, then the unrounded score), then unrated pubs by distance.
+  const order = req.query.sort === "distance" ? "distance_m" : "s.stars desc nulls last, s.score desc nulls last, distance_m";
+  // Vibe is 1 (calm) to 5 (lively). Pubs with no reviews yet are kept out of a vibe filter.
+  const vibe =
+    req.query.vibe === "calm" ? "and s.vibe <= 2.5" :
+    req.query.vibe === "lively" ? "and s.vibe >= 3.5" :
+    req.query.vibe ? (() => { throw bad("vibe must be calm or lively"); })() : "";
 
   const { rows } = await db().query(
     `select p.id, p.name, p.address, p.postcode, p.lat, p.lng,
@@ -64,6 +71,7 @@ async function listPubs(req: Req): Promise<Res> {
        left join pub_scores s on s.pub_id = p.id
       where earth_box(ll_to_earth($1, $2), $3) @> ll_to_earth(p.lat, p.lng)
         and earth_distance(ll_to_earth($1, $2), ll_to_earth(p.lat, p.lng)) <= $3
+        ${vibe}
       order by ${order}
       limit 50`,
     [lat, lng, radius],
@@ -82,7 +90,7 @@ async function getPub(id: number): Promise<Res> {
   if (!pub.rows[0]) throw new HttpError(404, "Pub not found");
 
   const reviews = await db().query(
-    `select r.id, u.display_name, r.tvs, r.sightlines, r.atmosphere, r.seating, r.drinks, r.service, r.food,
+    `select r.id, u.display_name, ${SCORES.map((k) => `r.${k}`).join(", ")}, r.food, r.vibe,
             ${FACTS.map((f) => `r.${f}`).join(", ")},
             r.match_label, r.comment, r.updated_at
        from reviews r join users u on u.id = r.user_id
@@ -98,7 +106,7 @@ async function getPub(id: number): Promise<Res> {
 async function getMyReview(id: number, req: Req): Promise<Res> {
   if (!req.userId) throw new HttpError(401, "Sign in first");
   const { rows } = await db().query(
-    `select r.id, u.display_name, r.tvs, r.sightlines, r.atmosphere, r.seating, r.drinks, r.service, r.food,
+    `select r.id, u.display_name, ${SCORES.map((k) => `r.${k}`).join(", ")}, r.food, r.vibe,
             ${FACTS.map((f) => `r.${f}`).join(", ")},
             r.match_label, r.comment, r.updated_at
        from reviews r join users u on u.id = r.user_id
@@ -118,6 +126,7 @@ async function putReview(id: number, req: Req): Promise<Res> {
   if (!displayName || displayName.length < 2) throw bad("display_name must be 2 to 30 characters");
   const scores = SCORES.map((k) => score(b[k], k));
   const food = b.food === undefined || b.food === null ? null : score(b.food, "food");
+  const vibe = score(b.vibe, "vibe");
   const facts = FACTS.map((k) => {
     const v = b[k];
     if (v === undefined || v === null) return null;
@@ -139,8 +148,8 @@ async function putReview(id: number, req: Req): Promise<Res> {
       [req.userId, displayName],
     );
 
-    const cols = [...SCORES, "food", ...FACTS, "match_label", "comment"];
-    const vals = [...scores, food, ...facts, matchLabel, comment];
+    const cols = [...SCORES, "food", "vibe", ...FACTS, "match_label", "comment"];
+    const vals = [...scores, food, vibe, ...facts, matchLabel, comment];
     const placeholders = vals.map((_, i) => `$${i + 3}`).join(", ");
     const updates = cols.map((c) => `${c} = excluded.${c}`).join(", ");
     await client.query(

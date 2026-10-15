@@ -1,26 +1,27 @@
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/+$/, "");
 
-export const SCORE_KEYS = ["tvs", "sightlines", "atmosphere", "seating", "drinks", "service"] as const;
+// Scored categories, in order of how much they count towards the stars.
+export const SCORE_KEYS = ["sightlines", "screens", "crowd", "seating", "commentary", "service_speed", "drink_prices"] as const;
 export type ScoreKey = (typeof SCORE_KEYS)[number];
 
 export const SCORE_LABELS: Record<ScoreKey | "food", { label: string; hint: string }> = {
-  tvs: { label: "TVs", hint: "Size and picture quality" },
-  sightlines: { label: "Sightlines", hint: "Can you see a screen from most seats" },
-  atmosphere: { label: "Atmosphere", hint: "Match day buzz" },
+  sightlines: { label: "View of a screen", hint: "Could you see it from where you sat" },
+  screens: { label: "Screens", hint: "Size and picture quality" },
+  crowd: { label: "Crowd", hint: "There to watch, not too packed" },
   seating: { label: "Seating", hint: "Chance of getting a seat" },
-  drinks: { label: "Drinks", hint: "Price and range" },
-  service: { label: "Bar service", hint: "The half-time queue" },
+  commentary: { label: "Commentary", hint: "Sound on and you could hear it" },
+  service_speed: { label: "Bar service", hint: "How quick, e.g. at half time" },
+  drink_prices: { label: "Drink prices", hint: "Value for money" },
   food: { label: "Food", hint: "Leave blank if you did not eat" },
 };
 
 export const FACT_KEYS = [
-  "sound_on", "shows_sky", "shows_tnt", "shows_amazon", "bookable",
+  "shows_sky", "shows_tnt", "shows_amazon", "bookable",
   "outdoor_screen", "away_friendly", "family_friendly", "step_free",
 ] as const;
 export type FactKey = (typeof FACT_KEYS)[number];
 
 export const FACT_LABELS: Record<FactKey, string> = {
-  sound_on: "Commentary on",
   shows_sky: "Sky Sports",
   shows_tnt: "TNT Sports",
   shows_amazon: "Amazon Prime",
@@ -35,6 +36,9 @@ type Scores = { [K in ScoreKey]: number | null } & { food: number | null };
 type Facts = { [K in FactKey]: boolean | null };
 
 export type Pub = Scores & Facts & {
+  stars: number | null; // null until a pub has enough reviews
+  score: number | null; // unrounded rating behind the stars
+  vibe: number | null; // 1 calm ... 5 lively
   id: number;
   name: string;
   address: string | null;
@@ -43,13 +47,19 @@ export type Pub = Scores & Facts & {
   lng: number;
   distance_m?: number;
   review_count: number | null;
-  overall: number | null;
 };
+
+export type Vibe = "calm" | "lively";
+export const VIBE_LABELS = ["Very calm", "Calm", "Mixed", "Lively", "Very lively"] as const;
+export function vibeLabel(v: number | null): string | null {
+  return v === null ? null : VIBE_LABELS[Math.min(4, Math.max(0, Math.round(v) - 1))]!;
+}
 
 export type Review = { [K in ScoreKey]: number } & Facts & {
   id: number;
   display_name: string;
   food: number | null;
+  vibe: number;
   match_label: string | null;
   comment: string | null;
   updated_at: string;
@@ -58,6 +68,7 @@ export type Review = { [K in ScoreKey]: number } & Facts & {
 export type ReviewInput = { [K in ScoreKey]: number } & Partial<Facts> & {
   display_name: string;
   food: number | null;
+  vibe: number;
   match_label: string;
   comment: string;
 };
@@ -69,8 +80,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-export function listPubs(lat: number, lng: number, radiusM: number, sort: "score" | "distance") {
+export function listPubs(lat: number, lng: number, radiusM: number, sort: "stars" | "distance", vibe: Vibe | "") {
   const q = new URLSearchParams({ lat: String(lat), lng: String(lng), radius_m: String(radiusM), sort });
+  if (vibe) q.set("vibe", vibe);
   return request<{ pubs: Pub[] }>(`/pubs?${q}`);
 }
 

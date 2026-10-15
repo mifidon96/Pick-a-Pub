@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { getMyReview, getPub, SCORE_KEYS, type Pub, type Review } from "@/lib/api";
+import { getMyReview, getPub, SCORE_KEYS, SCORE_LABELS, type Pub, type Review } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { FactChips, OverallBadge, ScoreBars } from "@/components/Scores";
+import { FactChips, RatingBadge, ScoreBars } from "@/components/Scores";
+import ShareButton from "@/components/ShareButton";
 import ReviewForm from "@/components/ReviewForm";
 
 // The pub id is a query parameter (/pub/?id=12) so the whole site can be a static export.
@@ -50,16 +51,17 @@ function PubDetail() {
 
       <div className="flex items-start gap-4">
         <div className="w-24 shrink-0">
-          <OverallBadge pub={pub} />
+          <RatingBadge pub={pub} />
         </div>
         <div className="min-w-0 space-y-2">
           <h1 className="text-2xl font-bold">{pub.name}</h1>
           <p className="text-sm text-muted">{[pub.address, pub.postcode].filter(Boolean).join(", ")}</p>
           <FactChips pub={pub} />
+          <ShareButton pub={pub} />
         </div>
       </div>
 
-      {pub.overall !== null && (
+      {pub.review_count !== null && (
         <section className="rounded-xl border border-line bg-card p-4">
           <ScoreBars pub={pub} />
         </section>
@@ -88,8 +90,8 @@ function PubDetail() {
             {r.match_label && <p className="mt-1 text-xs text-muted">Watched: {r.match_label}</p>}
             {r.comment && <p className="mt-2">{r.comment}</p>}
             <p className="mt-2 text-xs text-muted">
-              {SCORE_KEYS.map((k) => `${k} ${r[k]}`).join(" · ")}
-              {r.food !== null && ` · food ${r.food}`}
+              {SCORE_KEYS.map((k) => `${SCORE_LABELS[k].label} ${r[k]}`).join(" · ")}
+              {r.food !== null && ` · Food ${r.food}`}
             </p>
           </article>
         ))}

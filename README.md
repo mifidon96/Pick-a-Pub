@@ -3,15 +3,44 @@
 Find a pub near you that is good for watching football. Pubs are scored by people
 who watched a match there. Launch area: Balham.
 
-## What gets rated
+## The star rating
 
-Scored 1 to 5: TVs, sightlines, atmosphere, seating, drinks, bar service, food (optional).
-Overall score weights: TVs 25%, sightlines 20%, atmosphere 20%, seating 15%, drinks 10%, service 10%.
-Food is shown but not counted. Change the weights in `db/schema.sql` (`pub_scores` view).
+Reviewers score 7 things from 1 to 5. The weights come from a survey of what
+football fans say matters (`scripts/survey_weights.py`, 20 responses so far):
 
-Yes/no facts: commentary on, Sky, TNT, Amazon, bookable tables, outdoor screen,
-away fans welcome, family friendly, step-free. A fact shows when at least half of
-the people who answered said yes.
+| Category | Question | Weight |
+| --- | --- | --- |
+| View of a screen | Could you see it from where you sat? | 19% |
+| Screens | Size and picture quality | 15% |
+| Crowd | There to watch, not too packed | 15% (estimate) |
+| Seating | Chance of getting a seat | 13% |
+| Commentary | Sound on and audible | 13% |
+| Bar service | How quick | 13% (estimate) |
+| Drink prices | Value for money | 12% |
+
+Crowd and bar service were not asked directly in the survey, so they are estimates.
+
+How a pub's stars are worked out (`pub_scores` view in `db/schema.sql`):
+1. Newer reviews count more: a review's weight halves every 365 days.
+2. Each category is smoothed towards the average of all pubs, as if every pub had 3 extra average reviews. One glowing review cannot top the chart.
+3. Overall = weighted sum of the categories.
+4. Capped at the pub's own view-of-a-screen score + 1. If you cannot see the TV, it cannot rate highly.
+5. Rounded to the nearest half star. Stars show from 3 reviews; before that the pub shows as "New".
+
+Not in the stars: **vibe** (calm to lively, a filter instead because people want
+opposite things), **food**, and yes/no facts (Sky, TNT, Amazon, bookable, outdoor
+screen, away fans, family friendly, step-free).
+
+Tuning: weights live in the `rating_weights` table and the knobs in
+`rating_settings`, so both can change without a code deploy. Tests:
+`db/tests/rating_test.sql`.
+
+To update the weights after more survey responses (export without the email column):
+
+```bash
+python3 scripts/survey_weights.py responses.csv > weights.sql
+# then run weights.sql against the database
+```
 
 ## Layout
 
@@ -42,7 +71,7 @@ Needs Node 22 and Docker.
 docker compose up -d
 cd api && npm ci
 PGPASSWORD=postgres npm run admin -- migrate
-PGPASSWORD=postgres psql -h localhost -U postgres -d pickapub -f ../db/dev_seed.sql
+docker compose exec -T db psql -U postgres -d pickapub < ../db/dev_seed.sql
 PGPASSWORD=postgres npm run dev            # API on :4000
 ```
 
@@ -56,40 +85,30 @@ Locally you are signed in as a fake user (`NEXT_PUBLIC_DEV_USER`), so you can po
 
 ## Deploy to AWS
 
+Needs the AWS CLI v2 (signed in to your own account), Terraform 1.6+ and Node 22.
+
 ```bash
-# 1. Build the Lambda bundle
-cd api && npm ci && npm run build
-
-# 2. Create the infrastructure
-cd ../infra
-cp example.tfvars terraform.tfvars         # set cognito_domain_prefix
-terraform init && terraform apply
-
-# 3. Create the tables
-aws lambda invoke --function-name pickapub-admin --cli-binary-format raw-in-base64-out \
-  --payload '{"action":"migrate"}' /dev/stdout
-
-# 4. Import Balham pubs
-cd .. && node scripts/import-osm-pubs.mjs
-aws lambda invoke --function-name pickapub-admin --cli-binary-format raw-in-base64-out \
-  --payload file://pubs.json /dev/stdout
-
-# 5. Build and upload the site
-cd web && npm ci
-NEXT_PUBLIC_API_URL=$(terraform -chdir=../infra output -raw api_url) \
-NEXT_PUBLIC_COGNITO_AUTHORITY=$(terraform -chdir=../infra output -raw cognito_authority) \
-NEXT_PUBLIC_COGNITO_CLIENT_ID=$(terraform -chdir=../infra output -raw cognito_client_id) \
-npm run build
-aws s3 sync out "s3://$(terraform -chdir=../infra output -raw web_bucket)" --delete
-aws cloudfront create-invalidation \
-  --distribution-id "$(terraform -chdir=../infra output -raw cloudfront_distribution_id)" --paths "/*"
-
-terraform -chdir=../infra output site_url
+./scripts/deploy.sh
 ```
+
+It shows which AWS account it is about to use and asks before doing anything.
+The first run asks for a sign-in page prefix (e.g. `pickapub-morgan`) and takes
+10 to 15 minutes, mostly creating the database. It then:
+
+1. builds the API and runs `terraform apply` (Terraform shows the plan and asks again)
+2. creates the database tables
+3. imports Balham pubs from OpenStreetMap
+4. builds the site with the live API and sign-in settings, uploads it to S3 and clears the CloudFront cache
+5. prints the site URL
+
+Run the same command to deploy changes. Use `--skip-pubs` to skip the pub import.
+To pick an AWS profile: `AWS_PROFILE=personal ./scripts/deploy.sh`.
+
+To take it all down (deletes the database): `terraform -chdir=infra destroy`.
 
 ## Known gaps
 
-- [ ] Terraform has been syntax checked only. It has not been through `terraform validate` or applied.
+- [ ] Terraform passes `validate` against the real AWS provider but has not been applied yet.
 - [ ] Cognito sign-in has not been tested against a live user pool.
 - [ ] The OpenStreetMap import has not been run. Check the pub list it produces before importing.
 - [ ] The database password is a Lambda environment variable and sits in Terraform state. Move state to S3 (see `infra/versions.tf`) and consider Secrets Manager.
