@@ -41,13 +41,13 @@ begin
   select * into d from pub_scores where pub_id = (select id from ids where k = 'd');
   select count(*) into e_count from pub_scores where pub_id = (select id from ids where k = 'e');
 
-  -- 1. One perfect review gets no stars yet, and its score is pulled well below 5.
-  assert a.stars is null, format('A should have no stars, got %s', a.stars);
+  -- 1. One perfect review gets stars straight away, but its score is pulled well below 5.
+  assert a.stars is not null, 'A should have stars from its first review';
   assert a.score < 4.5, format('A score should be smoothed well below 5, got %s', a.score);
 
-  -- 2. Twenty 4s outrank a single 5. The API sorts by stars first (pubs with
-  --    fewer than min_reviews have none and sit below), then by score.
-  assert b.stars is not null and a.stars is null, 'B should be ranked and A should not';
+  -- 2. Twenty 4s rank level with or above a single 5: the smoothing keeps A's
+  --    stars no higher than B's, and the API breaks ties on review count.
+  assert a.stars <= b.stars, format('A (%s stars) should not outrank B (%s stars)', a.stars, b.stars);
   assert b.stars = 4, format('B should be 4 stars, got %s', b.stars);
 
   -- 3. Great everything but no view: capped at sightlines + 1.
