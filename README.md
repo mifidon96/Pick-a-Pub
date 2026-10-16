@@ -66,6 +66,24 @@ truth: remove a pub from it and its verdict is removed from the site. Mistakes
 (bad rating, unknown field) stop the deploy step and change nothing. Names are matched loosely ("The Regent" = "Regent"); a name that matches no pub is skipped with a warning in the deploy output. To check the
 file without deploying: `cd api && npm run admin -- content-json ../content/pubs.yaml /tmp/out.json`.
 
+## Search anywhere
+
+The search box finds any UK town, area or postcode (postcodes.io). The first
+search in a new area imports its pubs from OpenStreetMap in the background
+(about 30 to 60 seconds), using the `importer` Lambda, which runs outside the
+private network so no NAT gateway is needed. Areas are 4 km tiles, re-imported
+at most every 30 days. UK only, and the import route is throttled.
+
+## Photos
+
+- Visitors who have left a review can add photos from the pub page. Photos are
+  shrunk on the phone (which also strips GPS data) and uploaded straight to S3.
+- Nothing appears until approved:
+  `AWS_PROFILE=sandpit ./scripts/photos.sh list`, then `approve <id>` or `reject <id>`.
+  Unreviewed uploads are deleted after 14 days.
+- Our own photos: add them to `content/photos/` and list them in `content/pubs.yaml`
+  (see `content/photos/README.md`). They go live on the next deploy.
+
 ## Layout
 
 | Folder | What it is |

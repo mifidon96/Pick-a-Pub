@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { FILTERS, listPubs, SCORE_KEYS, SCORE_LABELS, type Filter, type Pub, type Sort, type Vibe } from "@/lib/api";
+import { areaStatus, ensureArea, FILTERS, listPubs, SCORE_KEYS, SCORE_LABELS, type Filter, type Pub, type Sort, type Vibe } from "@/lib/api";
+import PlaceSearch from "@/components/PlaceSearch";
 import { FactChips, RatingBadge } from "@/components/Scores";
 import { VerdictChip } from "@/components/Verdict";
 import { saveLastList } from "@/lib/lastList";
 import AREAS from "@/lib/areas.json";
 
-// Areas with imported pubs (web/lib/areas.json). The first is the default.
+// Featured areas (web/lib/areas.json) are always imported; the first is the default.
+// Anywhere else (search or "my location") is imported on first visit.
 type Centre = { lat: number; lng: number; label: string; areaId?: string };
 const AREA_CENTRES: Centre[] = AREAS.map((a) => ({ lat: a.lat, lng: a.lng, label: a.label, areaId: a.id }));
 const DEFAULT_CENTRE = AREA_CENTRES[0]!;
@@ -38,7 +40,14 @@ function PubSearch() {
   const router = useRouter();
   const params = useSearchParams();
 
-  const [centre, setCentre] = useState<Centre>(() => AREA_CENTRES.find((a) => a.areaId === params.get("area")) ?? DEFAULT_CENTRE);
+  const [centre, setCentre] = useState<Centre>(() => {
+    const featured = AREA_CENTRES.find((a) => a.areaId === params.get("area"));
+    if (featured) return featured;
+    const lat = Number(params.get("lat")), lng = Number(params.get("lng"));
+    const label = params.get("place");
+    if (label && Number.isFinite(lat) && Number.isFinite(lng) && params.get("lat") && params.get("lng")) return { lat, lng, label };
+    return DEFAULT_CENTRE;
+  });
   const [sort, setSort] = useState<Sort>(() => {
     const v = params.get("sort") as Sort | null;
     return v && SORTS.has(v) ? v : DEFAULTS.sort;
@@ -62,6 +71,11 @@ function PubSearch() {
   const url = (() => {
     const q = new URLSearchParams();
     if (centre.areaId) q.set("area", centre.areaId);
+    else if (centre.label !== "your location") {
+      q.set("place", centre.label);
+      q.set("lat", centre.lat.toFixed(5));
+      q.set("lng", centre.lng.toFixed(5));
+    }
     if (radius !== DEFAULTS.radius) q.set("within", String(radius));
     if (sort !== DEFAULTS.sort) q.set("sort", sort);
     if (vibe) q.set("vibe", vibe);
@@ -74,8 +88,42 @@ function PubSearch() {
     saveLastList(url);
   }, [url, router]);
 
+  // New places: make sure their pubs are imported before listing them.
+  const centreKey = `${centre.lat.toFixed(4)},${centre.lng.toFixed(4)}`;
+  const [area, setArea] = useState<{ key: string; state: "ready" | "importing" | "failed"; message?: string }>({ key: "", state: "ready" });
+  useEffect(() => {
+    if (centre.areaId) return;
+    let live = true;
+    let polls = 0;
+    const poll = () =>
+      setTimeout(() => {
+        areaStatus(centre.lat, centre.lng)
+          .then((r) => {
+            if (!live) return;
+            if (r.status === "ready") setArea({ key: centreKey, state: "ready" });
+            else if (++polls < 25) poll();
+            else setArea({ key: centreKey, state: "failed", message: "Finding pubs here is taking too long. Try again in a minute." });
+          })
+          .catch(() => live && setArea({ key: centreKey, state: "failed", message: "Could not check this area." }));
+      }, 4000);
+    ensureArea(centre.lat, centre.lng)
+      .then((r) => {
+        if (!live) return;
+        setArea({ key: centreKey, state: r.status });
+        if (r.status === "importing") poll();
+      })
+      .catch((e: Error) => live && setArea({ key: centreKey, state: "failed", message: e.message }));
+    return () => {
+      live = false;
+    };
+  }, [centre, centreKey]);
+  const areaReady = Boolean(centre.areaId) || (area.key === centreKey && area.state === "ready");
+  const areaPending = !centre.areaId && (area.key !== centreKey || area.state === "importing");
+  const areaFailed = !centre.areaId && area.key === centreKey && area.state === "failed" ? area.message : null;
+
   const key = `${centre.lat},${centre.lng},${radius},${sort},${vibe},${has.join(",")}`;
   useEffect(() => {
+    if (!areaReady) return;
     let live = true;
     listPubs({ lat: centre.lat, lng: centre.lng, radiusM: radius, sort, vibe, has })
       .then((r) => live && setResult({ key, pubs: r.pubs }))
@@ -83,8 +131,8 @@ function PubSearch() {
     return () => {
       live = false;
     };
-  }, [centre, radius, sort, vibe, has, key]);
-  const loading = result.key !== key;
+  }, [centre, radius, sort, vibe, has, key, areaReady]);
+  const loading = areaReady && result.key !== key;
 
   const filtered = sort !== DEFAULTS.sort || radius !== DEFAULTS.radius || vibe !== DEFAULTS.vibe || has.length > 0;
   function clearFilters() {
@@ -126,9 +174,10 @@ function PubSearch() {
       </div>
 
       <section className="space-y-3 rounded-xl border border-line bg-card p-3 text-sm" aria-label="Search options">
+        <PlaceSearch onPick={(p) => setCentre({ lat: p.lat, lng: p.lng, label: p.label })} />
         <div className="grid grid-cols-2 gap-2">
           <label className="space-y-1">
-            <span className="block text-xs text-muted">Area</span>
+            <span className="block text-xs text-muted">Or pick an area</span>
             <select
               value={centre.areaId ?? ""}
               onChange={(e) => {
@@ -137,7 +186,7 @@ function PubSearch() {
               }}
               className={select}
             >
-              {!centre.areaId && <option value="">My location</option>}
+              {!centre.areaId && <option value="">{centre.label === "your location" ? "My location" : centre.label}</option>}
               {AREA_CENTRES.map((a) => (
                 <option key={a.areaId} value={a.areaId}>{a.label}</option>
               ))}
@@ -199,6 +248,12 @@ function PubSearch() {
       </section>
       {locError && <p className="text-sm text-red-700">{locError}</p>}
 
+      {areaPending && (
+        <p className="rounded border border-line bg-card p-4 text-sm">
+          Finding pubs near {centre.label}... The first search in a new area can take up to a minute.
+        </p>
+      )}
+      {areaFailed && <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{areaFailed}</p>}
       {loading && <p className="text-sm text-muted">Loading pubs...</p>}
       {!loading && result.error && <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{result.error}</p>}
       {!loading && result.pubs?.length === 0 && (
@@ -214,7 +269,7 @@ function PubSearch() {
             <li key={pub.id}>
               <Link href={`/pub/?id=${pub.id}`} className="flex gap-4 rounded-xl border border-line bg-card p-4 hover:border-pitch">
                 <div className="w-20 shrink-0">
-                  <RatingBadge pub={pub} />
+                  {pub.photo ? <PhotoBadge pub={pub} /> : <RatingBadge pub={pub} />}
                 </div>
                 <div className="min-w-0 flex-1 space-y-2">
                   <div>
@@ -231,6 +286,21 @@ function PubSearch() {
             </li>
           ))}
       </ul>
+    </div>
+  );
+}
+
+// Cover photo with the rating laid over the bottom.
+function PhotoBadge({ pub }: { pub: Pub }) {
+  const n = pub.review_count ?? 0;
+  const label = pub.stars !== null ? `${pub.stars.toFixed(1)} ★` : n ? `New · ${n}` : "No reviews";
+  return (
+    <div className="relative h-20 w-20 overflow-hidden rounded-lg bg-line">
+      {/* eslint-disable-next-line @next/next/no-img-element -- static export, no image optimiser */}
+      <img src={pub.photo!} alt="" loading="lazy" className="h-full w-full object-cover" />
+      <span className={`absolute inset-x-0 bottom-0 px-1 py-0.5 text-center text-[11px] font-semibold ${pub.stars !== null ? "bg-pitch/90 text-white" : "bg-black/60 text-white"}`}>
+        {label}
+      </span>
     </div>
   );
 }

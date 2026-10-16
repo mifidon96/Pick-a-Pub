@@ -25,6 +25,14 @@ output "cloudfront_distribution_id" {
   value = aws_cloudfront_distribution.web.id
 }
 
+output "photos_bucket" {
+  value = aws_s3_bucket.photos.bucket
+}
+
+output "importer_function" {
+  value = aws_lambda_function.importer.function_name
+}
+
 output "admin_function" {
   value = aws_lambda_function.admin.function_name
 }

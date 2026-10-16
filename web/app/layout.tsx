@@ -18,7 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Header />
           <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">{children}</main>
           <footer className="mx-auto w-full max-w-3xl px-4 py-6 text-xs text-muted">
-            Pub locations © OpenStreetMap contributors.
+            Pub locations © OpenStreetMap contributors. Place search by postcodes.io; contains OS data © Crown copyright and database right.
           </footer>
         </AuthProvider>
       </body>

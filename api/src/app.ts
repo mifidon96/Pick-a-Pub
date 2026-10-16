@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { editorialPhotoUrl, photosEnabled, presignUpload, publicPhotoUrl } from "./photos";
 
 export type Req = {
   method: string;
@@ -88,6 +89,9 @@ async function listPubs(req: Req): Promise<Res> {
     `select p.id, p.name, p.address, p.postcode, p.lat, p.lng,
             round(earth_distance(ll_to_earth($1, $2), ll_to_earth(p.lat, p.lng)))::int as distance_m,
             e.rating::float8 as verdict_rating,
+            e.photos->>0 as editorial_photo,
+            (select ph.id from pub_photos ph where ph.pub_id = p.id and ph.status = 'approved'
+              order by ph.created_at desc limit 1) as upload_photo,
             ${SCORE_COLS}
        from pubs p
        left join pub_scores s on s.pub_id = p.id
@@ -100,7 +104,11 @@ async function listPubs(req: Req): Promise<Res> {
       limit 50`,
     [lat, lng, radius],
   );
-  return { status: 200, body: { pubs: rows } };
+  const pubs = rows.map(({ editorial_photo, upload_photo, ...p }) => ({
+    ...p,
+    photo: editorial_photo ? editorialPhotoUrl(editorial_photo) : upload_photo ? publicPhotoUrl(upload_photo) : null,
+  }));
+  return { status: 200, body: { pubs } };
 }
 
 // GET /pubs/{id}
@@ -112,6 +120,7 @@ async function getPub(id: number): Promise<Res> {
             case when e.rating is not null then json_build_object(
               'rating', e.rating::float8, 'summary', e.summary, 'best_for', e.best_for,
               'tip', e.tip, 'visited', e.visited) end as verdict,
+            coalesce(e.photos, '[]'::jsonb) as editorial_photos,
             ${SCORE_COLS}
        from pubs p
        left join pub_scores s on s.pub_id = p.id
@@ -120,6 +129,16 @@ async function getPub(id: number): Promise<Res> {
     [id],
   );
   if (!pub.rows[0]) throw new HttpError(404, "Pub not found");
+  const { editorial_photos, ...pubRow } = pub.rows[0];
+  const uploads = await db().query(
+    `select ph.id, u.display_name from pub_photos ph left join users u on u.id = ph.user_id
+      where ph.pub_id = $1 and ph.status = 'approved' order by ph.created_at desc limit 12`,
+    [id],
+  );
+  const photos = [
+    ...(editorial_photos as string[]).map((f) => ({ url: editorialPhotoUrl(f), credit: "Pick-a-Pub" })),
+    ...uploads.rows.map((r) => ({ url: publicPhotoUrl(r.id), credit: r.display_name ?? null })),
+  ];
 
   const reviews = await db().query(
     `select r.id, u.display_name, ${SCORES.map((k) => `r.${k}`).join(", ")}, r.food, r.vibe,
@@ -131,7 +150,27 @@ async function getPub(id: number): Promise<Res> {
       limit 30`,
     [id],
   );
-  return { status: 200, body: { pub: pub.rows[0], reviews: reviews.rows } };
+  return { status: 200, body: { pub: { ...pubRow, photos }, reviews: reviews.rows } };
+}
+
+// POST /pubs/{id}/photos  (signed in). Returns a one-off form to upload one JPEG
+// straight to S3. The photo stays hidden until approved.
+async function startPhotoUpload(id: number, req: Req): Promise<Res> {
+  if (!req.userId) throw new HttpError(401, "Sign in to add photos");
+  if (!photosEnabled()) throw new HttpError(501, "Photo uploads only work on the live site");
+  const exists = await db().query("select 1 from pubs where id = $1", [id]);
+  if (!exists.rowCount) throw new HttpError(404, "Pub not found");
+  const known = await db().query("select 1 from users where id = $1", [req.userId]);
+  if (!known.rowCount) throw new HttpError(403, "Leave a review first, then you can add photos");
+  const pending = await db().query(
+    "select count(*)::int as n from pub_photos where user_id = $1 and status = 'pending'",
+    [req.userId],
+  );
+  if (pending.rows[0].n >= 10) throw new HttpError(429, "You have 10 photos waiting for approval already");
+
+  const upload = await presignUpload();
+  await db().query("insert into pub_photos (id, pub_id, user_id) values ($1, $2, $3)", [upload.id, id, req.userId]);
+  return { status: 200, body: upload };
 }
 
 // GET /pubs/{id}/review  (signed in). The caller's own review, or null.
@@ -204,6 +243,9 @@ export async function handle(req: Req): Promise<Res> {
   try {
     const path = req.path.replace(/\/+$/, "") || "/";
     if (req.method === "GET" && path === "/pubs") return await listPubs(req);
+
+    const ph = /^\/pubs\/(\d{1,9})\/photos$/.exec(path);
+    if (ph && req.method === "POST") return await startPhotoUpload(Number(ph[1]), req);
 
     const m = /^\/pubs\/(\d{1,9})(\/review)?$/.exec(path);
     if (m) {

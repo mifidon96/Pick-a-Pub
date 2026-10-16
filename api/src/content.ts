@@ -8,6 +8,7 @@ export type ContentEntry = {
   name?: string;           // or match by exact name...
   area?: string;           // ...within an area from web/lib/areas.json
   about?: Record<string, string | boolean>;
+  photos?: string[];       // filenames in content/photos/
   verdict?: {
     rating: number;
     summary?: string;
@@ -38,7 +39,7 @@ export function parseContent(yamlText: string): ContentEntry[] {
   return doc.map((raw, i): ContentEntry => {
     const where = `entry ${i + 1}${raw?.pub ? ` (${raw.pub})` : raw?.name ? ` (${raw.name})` : ""}`;
     if (typeof raw !== "object" || raw === null) throw new Error(`${where} is not a valid entry`);
-    const unknown = Object.keys(raw).filter((k) => !["pub", "name", "area", "about", "verdict"].includes(k));
+    const unknown = Object.keys(raw).filter((k) => !["pub", "name", "area", "about", "photos", "verdict"].includes(k));
     if (unknown.length) throw new Error(`${where}: unknown field(s) ${unknown.join(", ")}`);
 
     const entry: ContentEntry = {};
@@ -81,7 +82,16 @@ export function parseContent(yamlText: string): ContentEntry[] {
         visited,
       };
     }
-    if (!entry.about && !entry.verdict) throw new Error(`${where}: add about: and/or verdict:`);
+    if (raw.photos !== undefined) {
+      if (!Array.isArray(raw.photos)) throw new Error(`${where}: photos must be a list of filenames`);
+      entry.photos = raw.photos.map((f: unknown) => {
+        if (typeof f !== "string" || !/^[a-z0-9][a-z0-9_-]{0,80}\.(jpg|jpeg|png|webp)$/.test(f)) {
+          throw new Error(`${where}: photo "${String(f)}" must be a lowercase filename like bedford-1.jpg`);
+        }
+        return f;
+      });
+    }
+    if (!entry.about && !entry.verdict && !entry.photos) throw new Error(`${where}: add about:, photos: and/or verdict:`);
     return entry;
   });
 }

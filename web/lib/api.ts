@@ -43,6 +43,7 @@ export type Pub = Scores & Facts & {
   score: number | null; // unrounded rating behind the stars
   vibe: number | null; // 1 calm ... 5 lively
   verdict_rating?: number | null; // Pick-a-Pub's own rating, if we have reviewed it
+  photo?: string | null; // cover photo for the list
   id: number;
   name: string;
   address: string | null;
@@ -70,7 +71,8 @@ export type Verdict = {
   visited: string | null; // YYYY-MM
 };
 
-export type PubDetail = Pub & { ref: string; info: PubInfo; verdict: Verdict | null };
+export type Photo = { url: string; credit: string | null };
+export type PubDetail = Pub & { ref: string; info: PubInfo; verdict: Verdict | null; photos: Photo[] };
 
 export type Vibe = "calm" | "lively";
 export const VIBE_LABELS = ["Very calm", "Calm", "Mixed", "Lively", "Very lively"] as const;
@@ -136,4 +138,30 @@ export function putReview(id: number, input: ReviewInput, headers: HeadersInit) 
     headers: { ...headers, "content-type": "application/json" },
     body: JSON.stringify(input),
   });
+}
+
+// Search anywhere: make sure pubs around a point have been imported.
+export type AreaStatus = "ready" | "importing";
+export function ensureArea(lat: number, lng: number) {
+  return request<{ status: AreaStatus }>(`/areas/import`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ lat, lng }),
+  });
+}
+export function areaStatus(lat: number, lng: number) {
+  return request<{ status: AreaStatus }>(`/areas/status?${new URLSearchParams({ lat: String(lat), lng: String(lng) })}`);
+}
+
+// Photos: ask for a one-off upload form, then post the image straight to S3.
+export async function uploadPhoto(pubId: number, image: Blob, headers: HeadersInit): Promise<void> {
+  const form = await request<{ url: string; fields: Record<string, string> }>(`/pubs/${pubId}/photos`, {
+    method: "POST",
+    headers,
+  });
+  const body = new FormData();
+  for (const [k, v] of Object.entries(form.fields)) body.append(k, v);
+  body.append("file", image, "photo.jpg"); // must be the last field
+  const res = await fetch(form.url, { method: "POST", body });
+  if (!res.ok) throw new Error(res.status === 400 ? "That photo is too large" : `Upload failed (${res.status})`);
 }

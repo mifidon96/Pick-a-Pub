@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { writeFileSync } from "node:fs";
 import { runAdmin } from "./admin";
 import { parseContent } from "./content";
@@ -20,6 +21,10 @@ async function main() {
     console.log(await runAdmin({ action: "apply_content", entries: parseContent(readFileSync(file, "utf8")) }));
   } else if (cmd === "content-json" && file && process.argv[4]) {
     const entries = parseContent(readFileSync(file, "utf8"));
+    // Every photo listed must exist in content/photos/ next to the yaml file.
+    const dir = join(dirname(file), "photos");
+    const missing = entries.flatMap((e) => e.photos ?? []).filter((f) => !existsSync(join(dir, f)));
+    if (missing.length) throw new Error(`Missing from content/photos/: ${missing.join(", ")}`);
     writeFileSync(process.argv[4], JSON.stringify({ action: "apply_content", entries }));
     console.log(`${file}: ${entries.length} entr${entries.length === 1 ? "y" : "ies"} OK`);
     return;

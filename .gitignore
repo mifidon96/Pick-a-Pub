@@ -13,3 +13,4 @@ pubs.json
 *.tfstate.*
 *.tfvars
 !example.tfvars
+.test/

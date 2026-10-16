@@ -6,6 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import { getPub, SCORE_KEYS, SCORE_LABELS, type PubDetail, type PubInfo, type Review } from "@/lib/api";
 import { FactChips, RatingBadge, ScoreBars } from "@/components/Scores";
 import ShareButton from "@/components/ShareButton";
+import PubPhotos from "@/components/PubPhotos";
 import { VerdictPanel } from "@/components/Verdict";
 import { lastList } from "@/lib/lastList";
 
@@ -73,6 +74,8 @@ function PubDetailView() {
         </Link>
         <ShareButton pub={pub} />
       </div>
+
+      <PubPhotos pubId={pub.id} pubName={pub.name} photos={pub.photos ?? []} />
 
       {pub.verdict && <VerdictPanel verdict={pub.verdict} />}
 

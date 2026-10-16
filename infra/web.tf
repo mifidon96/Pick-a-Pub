@@ -56,6 +56,23 @@ resource "aws_cloudfront_distribution" "web" {
     origin_access_control_id = aws_cloudfront_origin_access_control.web.id
   }
 
+  # Approved photos: https://<site>/public/...
+  origin {
+    origin_id                = "photos"
+    domain_name              = aws_s3_bucket.photos.bucket_regional_domain_name
+    origin_access_control_id = aws_cloudfront_origin_access_control.web.id
+  }
+
+  ordered_cache_behavior {
+    path_pattern           = "public/*"
+    target_origin_id       = "photos"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+    cache_policy_id        = data.aws_cloudfront_cache_policy.optimized.id
+  }
+
   default_cache_behavior {
     target_origin_id       = "s3"
     viewer_protocol_policy = "redirect-to-https"

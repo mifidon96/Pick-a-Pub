@@ -32,6 +32,7 @@ admin_invoke() {
 }
 
 step "Checking tools"
+export AWS_PAGER=""
 for t in aws terraform node npm; do command -v "$t" >/dev/null || fail "$t is not installed"; done
 node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 20 ? 0 : 1)' || fail "Node 20 or newer is needed"
 
@@ -62,6 +63,7 @@ terraform -chdir="$INFRA" apply
 
 step "Waiting for the Lambdas to be ready"
 aws lambda wait function-updated-v2 --function-name "$(tf_out admin_function)"
+aws lambda wait function-updated-v2 --function-name "$(tf_out importer_function)"
 
 step "Creating or updating database tables"
 tmp="$(mktemp)"; echo '{"action":"migrate"}' > "$tmp"
@@ -71,6 +73,13 @@ if [[ "$SKIP_PUBS" == false ]]; then
   step "Importing pubs for every area from OpenStreetMap"
   (cd "$ROOT" && node scripts/import-osm-pubs.mjs)
   admin_invoke "$ROOT/pubs.json"
+fi
+
+if compgen -G "$ROOT/content/photos/*" >/dev/null; then
+  step "Uploading our own photos (content/photos/)"
+  aws s3 sync "$ROOT/content/photos" "s3://$(tf_out photos_bucket)/public/editorial/" \
+    --exclude "*" --include "*.jpg" --include "*.jpeg" --include "*.png" --include "*.webp" \
+    --cache-control "public, max-age=86400" --only-show-errors
 fi
 
 step "Loading Pick-a-Pub verdicts and details (content/pubs.yaml)"

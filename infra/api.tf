@@ -37,6 +37,9 @@ locals {
     PGUSER     = aws_db_instance.main.username
     PGPASSWORD = random_password.db.result
     PGSSL      = "1"
+    # Photos: uploads go to this bucket, approved ones are served by CloudFront.
+    PHOTOS_BUCKET   = aws_s3_bucket.photos.bucket
+    PHOTOS_BASE_URL = "https://${aws_cloudfront_distribution.web.domain_name}"
     # Makes Node trust the RDS certificate authority shipped with the Lambda runtime.
     NODE_EXTRA_CA_CERTS = "/var/runtime/ca-cert.pem"
   }
@@ -106,7 +109,7 @@ resource "aws_apigatewayv2_api" "main" {
 
   cors_configuration {
     allow_origins = concat(["https://${aws_cloudfront_distribution.web.domain_name}", "http://localhost:3000"], var.extra_origins)
-    allow_methods = ["GET", "PUT", "OPTIONS"]
+    allow_methods = ["GET", "PUT", "POST", "OPTIONS"]
     allow_headers = ["content-type", "authorization"]
     max_age       = 3600
   }
@@ -121,6 +124,13 @@ resource "aws_apigatewayv2_stage" "default" {
   default_route_settings {
     throttling_rate_limit  = 20
     throttling_burst_limit = 40
+  }
+
+  # Starting an area import fetches from OpenStreetMap, so keep it slow.
+  route_settings {
+    route_key              = aws_apigatewayv2_route.import_area.route_key
+    throttling_rate_limit  = 1
+    throttling_burst_limit = 3
   }
 }
 
@@ -169,6 +179,14 @@ resource "aws_apigatewayv2_route" "get_my_review" {
 resource "aws_apigatewayv2_route" "put_review" {
   api_id             = aws_apigatewayv2_api.main.id
   route_key          = "PUT /pubs/{id}/review"
+  target             = "integrations/${aws_apigatewayv2_integration.api.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "add_photo" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /pubs/{id}/photos"
   target             = "integrations/${aws_apigatewayv2_integration.api.id}"
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id

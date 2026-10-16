@@ -203,3 +203,28 @@ create table if not exists pub_editorial (
   visited     text check (visited ~ '^\d{4}-\d{2}$'),  -- YYYY-MM
   updated_at  timestamptz not null default now()
 );
+
+-- ---------------------------------------------------------------------------
+-- Search anywhere: which map tiles have had their pubs imported
+-- ---------------------------------------------------------------------------
+create table if not exists import_tiles (
+  tile         text primary key,               -- e.g. "1286_-17", see api/src/tiles.ts
+  imported_at  timestamptz not null default now(),
+  pub_count    integer not null default 0
+);
+
+-- ---------------------------------------------------------------------------
+-- Photos. Uploaded photos stay pending until approved (scripts/photos.sh).
+-- Our own photos live in content/photos/ and are listed in content/pubs.yaml.
+-- ---------------------------------------------------------------------------
+create table if not exists pub_photos (
+  id           uuid primary key,
+  pub_id       integer not null references pubs(id) on delete cascade,
+  user_id      text references users(id) on delete cascade,
+  status       text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  created_at   timestamptz not null default now(),
+  reviewed_at  timestamptz
+);
+create index if not exists pub_photos_pub_idx on pub_photos (pub_id, status, created_at);
+
+alter table pub_editorial add column if not exists photos jsonb not null default '[]'::jsonb;  -- filenames in content/photos/

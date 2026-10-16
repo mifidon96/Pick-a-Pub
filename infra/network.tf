@@ -48,6 +48,25 @@ resource "aws_vpc_security_group_egress_rule" "lambda_to_db" {
   to_port                      = 5432
 }
 
+# Free gateway endpoint so Lambdas in the private subnets can reach S3 (photos)
+# without a NAT gateway.
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_vpc.main.main_route_table_id]
+
+  tags = { Name = "${var.project}-s3" }
+}
+
+resource "aws_vpc_security_group_egress_rule" "lambda_to_s3" {
+  security_group_id = aws_security_group.lambda.id
+  prefix_list_id    = aws_vpc_endpoint.s3.prefix_list_id
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+}
+
 resource "aws_vpc_security_group_ingress_rule" "db_from_lambda" {
   security_group_id            = aws_security_group.db.id
   referenced_security_group_id = aws_security_group.lambda.id
