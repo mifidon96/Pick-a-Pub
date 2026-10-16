@@ -2,6 +2,7 @@ import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda
 import { InvokeCommand, LambdaClient } from "@aws-sdk/client-lambda";
 import { osmToPub, type OsmElement } from "../../scripts/osm-to-pub.mjs";
 import { attachWikimediaPhotos } from "../../scripts/wikimedia.mjs";
+import { overpass } from "../../scripts/overpass.mjs";
 import { inUk, TILE_IMPORT_RADIUS_M, tileFor } from "./tiles";
 import { copyPhotos, type ToCopy } from "./mirror";
 
@@ -62,18 +63,10 @@ function readPoint(lat: unknown, lng: unknown): { lat: number; lng: number } | n
   return { lat: la, lng: lo };
 }
 
-export async function fetchPubs(lat: number, lng: number, radius: number): Promise<OsmElement[]> {
-  const query = `[out:json][timeout:50];
+export function fetchPubs(lat: number, lng: number, radius: number): Promise<OsmElement[]> {
+  return overpass(`[out:json][timeout:50];
 nwr[amenity~"^(pub|bar)$"][name](around:${radius},${lat},${lng});
-out center tags;`;
-  const res = await fetch("https://overpass-api.de/api/interpreter", {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded", "user-agent": "pick-a-pub/0.3 (area import)" },
-    body: new URLSearchParams({ data: query }),
-    signal: AbortSignal.timeout(55_000),
-  });
-  if (!res.ok) throw new Error(`Overpass returned ${res.status}`);
-  return (await res.json()).elements ?? [];
+out center tags;`, { waitMs: 5_000 });
 }
 
 async function runWorker(w: Worker) {

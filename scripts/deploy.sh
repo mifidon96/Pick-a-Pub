@@ -71,8 +71,12 @@ admin_invoke "$tmp"; rm -f "$tmp"
 
 if [[ "$SKIP_PUBS" == false ]]; then
   step "Importing pubs for every area from OpenStreetMap"
-  (cd "$ROOT" && node scripts/import-osm-pubs.mjs)
-  admin_invoke "$ROOT/pubs.json"
+  # A busy OpenStreetMap should not stop the deploy: existing pubs stay as they are.
+  if (cd "$ROOT" && node scripts/import-osm-pubs.mjs); then
+    admin_invoke "$ROOT/pubs.json"
+  else
+    printf '\033[1;33mWarning: could not reach OpenStreetMap, so pubs were not refreshed. Carrying on; run a full deploy later.\033[0m\n'
+  fi
 fi
 
 step "Copying Wikimedia photos into our bucket"
