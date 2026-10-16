@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
-import { handler } from "../src/importer";
+process.env.PHOTOS_BUCKET = "test-bucket";
+process.env.PHOTOS_BASE_URL = "https://cdn.example";
+const { handler } = await import("../src/importer");
+const { objects } = await import("./mock-s3");
+const { handle } = await import("../src/app");
 import { asyncCalls } from "./mock-lambda";
 import { db } from "../src/db";
 import { tileFor } from "../src/tiles";
 
 // Fake Overpass: two pubs near Cardiff Central.
-globalThis.fetch = (async (url: string) => url.includes("commons.wikimedia.org") ? new Response(JSON.stringify({ query: { pages: { "5": {
+let wikimediaGone = false;
+globalThis.fetch = (async (url: string) => url.startsWith("https://upload.wikimedia.org/")
+  ? (wikimediaGone ? new Response("", { status: 404 }) : new Response(new Uint8Array(1234), { headers: { "content-type": "image/jpeg" } }))
+  : url.includes("commons.wikimedia.org") ? new Response(JSON.stringify({ query: { pages: { "5": {
   title: "File:Test pub.jpg",
   imageinfo: [{ thumburl: "https://upload.wikimedia.org/t.jpg", descriptionurl: "https://commons.wikimedia.org/wiki/File:Test_pub.jpg",
     extmetadata: { Artist: { value: "Ann" }, LicenseShortName: { value: "CC BY 2.0" } } }],
@@ -45,6 +52,27 @@ assert.equal(asyncCalls.length, 1, "no second import for a fresh tile");
 const info = (await db().query("select info from pubs where source_id = 'node/991'")).rows[0].info;
 assert.equal(info.dog, true); assert.equal(info.shows_sport, true);
 assert.equal(info.photo?.author, "Ann", "Wikimedia photo stored with credit");
+assert.match(info.photo?.key ?? "", /^public\/wikimedia\/[0-9a-f]{20}\.jpg$/, "copied into our bucket during the import");
+assert.ok(objects.has(info.photo.key), "file saved to S3");
+const pubId = (await db().query("select id from pubs where source_id = 'node/991'")).rows[0].id;
+const detail = (await handle({ method: "GET", path: `/pubs/${pubId}`, query: {}, body: {} })).body as { pub: { photos: { url: string; link?: string }[] } };
+assert.equal(detail.pub.photos[0]!.url, `https://cdn.example/${info.photo.key}`, "served from our copy");
+assert.match(detail.pub.photos[0]!.link ?? "", /commons\.wikimedia\.org/, "credit link unchanged");
+
+// Re-importing the same photo keeps our copy (no second download)
+await db().query("delete from import_tiles where tile = $1", [t.tile]);
+const before = objects.size;
+await handler({ worker: true, ...t } as never);
+const again = (await db().query("select info from pubs where source_id = 'node/991'")).rows[0].info;
+assert.equal(again.photo.key, info.photo.key, "copy kept on re-import");
+assert.equal(objects.size, before);
+
+// A photo deleted on Wikimedia is dropped by the catch-up copy
+await db().query("update pubs set info = jsonb_set(info, '{photo}', (info->'photo') - 'key') where source_id = 'node/991'");
+wikimediaGone = true;
+const res = await handler({ copy_photos: true } as never) as { removed: number };
+assert.ok(res.removed >= 1);
+assert.equal((await db().query("select info ? 'photo' as has from pubs where source_id = 'node/991'")).rows[0].has, false, "gone photo removed");
 
 r = await api("POST", "/areas/import", { body: { lat: 48.85, lng: 2.35 } }); // Paris
 assert.equal(r.statusCode, 400, "outside the UK refused");

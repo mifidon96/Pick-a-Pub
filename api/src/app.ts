@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { editorialPhotoUrl, photosEnabled, presignUpload, publicPhotoUrl } from "./photos";
+import { editorialPhotoUrl, photoKeyUrl, photosEnabled, presignUpload, publicPhotoUrl } from "./photos";
 
 export type Req = {
   method: string;
@@ -93,6 +93,7 @@ async function listPubs(req: Req): Promise<Res> {
             (select ph.id from pub_photos ph where ph.pub_id = p.id and ph.status = 'approved'
               order by ph.created_at desc limit 1) as upload_photo,
             p.info->'photo'->>'url' as wiki_photo,
+            p.info->'photo'->>'key' as wiki_copy,
             ${SCORE_COLS}
        from pubs p
        left join pub_scores s on s.pub_id = p.id
@@ -106,9 +107,11 @@ async function listPubs(req: Req): Promise<Res> {
     [lat, lng, radius],
   );
   // Cover photo: ours first, then an approved upload, then Wikimedia.
-  const pubs = rows.map(({ editorial_photo, upload_photo, wiki_photo, ...p }) => ({
+  const pubs = rows.map(({ editorial_photo, upload_photo, wiki_photo, wiki_copy, ...p }) => ({
     ...p,
-    photo: editorial_photo ? editorialPhotoUrl(editorial_photo) : upload_photo ? publicPhotoUrl(upload_photo) : wiki_photo ?? null,
+    photo: editorial_photo ? editorialPhotoUrl(editorial_photo)
+      : upload_photo ? publicPhotoUrl(upload_photo)
+      : photoKeyUrl(wiki_copy) ?? wiki_photo ?? null,
   }));
   return { status: 200, body: { pubs } };
 }
@@ -143,7 +146,7 @@ async function getPub(id: number): Promise<Res> {
   ];
   const wiki = pubRow.info?.photo;
   if (wiki?.url) {
-    photos.push({ url: wiki.url, credit: `${wiki.author}, ${wiki.licence}`, link: wiki.page, licence_url: wiki.licence_url } as never);
+    photos.push({ url: photoKeyUrl(wiki.key) ?? wiki.url, credit: `${wiki.author}, ${wiki.licence}`, link: wiki.page, licence_url: wiki.licence_url } as never);
   }
   if (pubRow.info) delete pubRow.info.photo; // shown in the gallery, not in "About this pub"
 

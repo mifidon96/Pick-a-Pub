@@ -3,6 +3,7 @@ import { InvokeCommand, LambdaClient } from "@aws-sdk/client-lambda";
 import { osmToPub, type OsmElement } from "../../scripts/osm-to-pub.mjs";
 import { attachWikimediaPhotos } from "../../scripts/wikimedia.mjs";
 import { inUk, TILE_IMPORT_RADIUS_M, tileFor } from "./tiles";
+import { copyPhotos, type ToCopy } from "./mirror";
 
 // "Search anywhere" importer. Runs OUTSIDE the private network so it can reach
 // OpenStreetMap without a NAT gateway; it never touches the database itself and
@@ -16,6 +17,28 @@ const ADMIN_FN = process.env.ADMIN_FUNCTION ?? "";
 const lambda = new LambdaClient({});
 
 type Worker = { worker: true; tile: string; lat: number; lng: number };
+type CopyJob = { copy_photos: true };
+
+// Copy Wikimedia photos into our bucket, in batches, for up to ~60 seconds.
+export async function copyPendingPhotos(fetchFn: typeof fetch = fetch) {
+  const bucket = process.env.PHOTOS_BUCKET;
+  if (!bucket) return { copied: 0, removed: 0, remaining: null, note: "PHOTOS_BUCKET not set" };
+  const started = Date.now();
+  let copied = 0, removed = 0, remaining = 0;
+  const failed = new Set<number>();
+  while (Date.now() - started < 60_000) {
+    const batch = await invokeAdmin<{ items: ToCopy[]; remaining: number }>({ action: "list_photos_to_copy", limit: 25 });
+    const todo = batch.items.filter((i) => !failed.has(i.id));
+    remaining = batch.remaining;
+    if (!todo.length) break;
+    const results = await copyPhotos(todo, bucket, fetchFn);
+    for (const i of todo) if (!results.some((r) => r.id === i.id)) failed.add(i.id); // retry on a later run
+    const saved = await invokeAdmin<{ copied: number; removed: number }>({ action: "set_photo_copies", results });
+    copied += saved.copied;
+    removed += saved.removed;
+  }
+  return { copied, removed, remaining: Math.max(0, remaining - copied - removed) };
+}
 
 async function invokeAdmin<T>(payload: unknown): Promise<T> {
   const res = await lambda.send(new InvokeCommand({
@@ -61,12 +84,14 @@ async function runWorker(w: Worker) {
   const pubs = elements.map(osmToPub);
   const photos = await attachWikimediaPhotos(pubs, elements);
   const result = await invokeAdmin({ action: "import_pubs", pubs, tile: w.tile });
-  console.log(JSON.stringify({ tile: w.tile, found: pubs.length, photos, result }));
+  const copies = photos ? await copyPendingPhotos() : null;
+  console.log(JSON.stringify({ tile: w.tile, found: pubs.length, photos, result, copies }));
   return result;
 }
 
-export async function handler(event: APIGatewayProxyEventV2 | Worker): Promise<APIGatewayProxyResultV2 | unknown> {
+export async function handler(event: APIGatewayProxyEventV2 | Worker | CopyJob): Promise<APIGatewayProxyResultV2 | unknown> {
   if ("worker" in event) return runWorker(event);
+  if ("copy_photos" in event) return copyPendingPhotos(); // run by the deploy script
 
   const method = event.requestContext.http.method;
   const path = event.rawPath.replace(/\/+$/, "");

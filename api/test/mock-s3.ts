@@ -7,16 +7,19 @@ export class HeadObjectCommand { constructor(public input: { Key: string }) {} }
 export class CopyObjectCommand { constructor(public input: { CopySource: string; Key: string }) {} }
 export class DeleteObjectCommand { constructor(public input: { Key: string }) {} }
 export class GetObjectCommand { constructor(public input: { Key: string }) {} }
+// Subclass of the real command: the presigned-upload helper reads its endpoint rules.
+export class PutObjectCommand extends RealPutObjectCommand {}
 // Extends the real client (imported by file path, which the alias does not catch)
 // so request signing still works; only network calls are faked.
 // @ts-expect-error no types for the direct path
-import { S3Client as RealS3Client } from "../node_modules/@aws-sdk/client-s3/dist-cjs/index.js";
+import { S3Client as RealS3Client, PutObjectCommand as RealPutObjectCommand } from "../node_modules/@aws-sdk/client-s3/dist-cjs/index.js";
 export class S3Client extends RealS3Client {
   // @ts-expect-error simplified signature for tests
-  async send(cmd: HeadObjectCommand | CopyObjectCommand | DeleteObjectCommand) {
+  async send(cmd: HeadObjectCommand | CopyObjectCommand | DeleteObjectCommand | PutObjectCommand) {
     if (cmd instanceof HeadObjectCommand) { if (!objects.has(cmd.input.Key)) throw new Error("NotFound"); return {}; }
     if (cmd instanceof CopyObjectCommand) { const src = cmd.input.CopySource.split("/").slice(1).join("/"); objects.set(cmd.input.Key, objects.get(src)!); return {}; }
     if (cmd instanceof DeleteObjectCommand) { objects.delete(cmd.input.Key); return {}; }
+    if (cmd instanceof PutObjectCommand) { const i = cmd.input as { Key: string; Body: Uint8Array }; objects.set(i.Key, `bytes:${i.Body.length}`); return {}; }
     return {};
   }
 }

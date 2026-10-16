@@ -29,6 +29,20 @@ data "aws_iam_policy_document" "importer" {
   }
 }
 
+# Saving copies of Wikimedia photos into the photos bucket.
+data "aws_iam_policy_document" "importer_photos" {
+  statement {
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.photos.arn}/public/wikimedia/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "importer_photos" {
+  name   = "photos"
+  role   = aws_iam_role.importer.id
+  policy = data.aws_iam_policy_document.importer_photos.json
+}
+
 resource "aws_iam_role_policy" "importer" {
   name   = "invoke"
   role   = aws_iam_role.importer.id
@@ -51,11 +65,12 @@ resource "aws_lambda_function" "importer" {
   filename         = data.archive_file.importer.output_path
   source_code_hash = data.archive_file.importer.output_base64sha256
   memory_size      = 256
-  timeout          = 90 # Overpass can be slow for a city centre
+  timeout          = 120 # Overpass can be slow for a city centre, then photo copies
 
   environment {
     variables = {
       ADMIN_FUNCTION = aws_lambda_function.admin.function_name
+      PHOTOS_BUCKET  = aws_s3_bucket.photos.bucket
     }
   }
 

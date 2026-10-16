@@ -11,6 +11,8 @@ export type AdminEvent =
   | { action: "migrate" }
   | { action: "import_pubs"; pubs: PubInput[]; tile?: string }
   | { action: "tile_status"; tile: string }
+  | { action: "list_photos_to_copy"; limit?: number }
+  | { action: "set_photo_copies"; results: { id: number; key?: string; gone?: boolean }[] }
   | { action: "list_pending_photos" }
   | { action: "approve_photo"; id: string }
   | { action: "reject_photo"; id: string }
@@ -71,7 +73,13 @@ export async function runAdmin(event: AdminEvent): Promise<unknown> {
          values ($1, $2, $3, $4, $5, $6, $7, $8)
          on conflict (source, source_id) do update
            set name = excluded.name, address = excluded.address, postcode = excluded.postcode,
-               lat = excluded.lat, lng = excluded.lng, info = excluded.info`,
+               lat = excluded.lat, lng = excluded.lng,
+               -- keep our copy of the Wikimedia photo if the photo has not changed
+               info = case
+                 when excluded.info->'photo'->>'url' = pubs.info->'photo'->>'url' and pubs.info->'photo' ? 'key'
+                 then jsonb_set(excluded.info, '{photo,key}', pubs.info->'photo'->'key')
+                 else excluded.info
+               end`,
         [p.source, p.source_id, p.name, p.address ?? null, p.postcode ?? null, p.lat, p.lng, JSON.stringify(cleanInfo(p.info))],
       );
       upserted++;
@@ -95,6 +103,32 @@ export async function runAdmin(event: AdminEvent): Promise<unknown> {
       [event.tile, TILE_MAX_AGE_DAYS],
     );
     return rows[0] ?? { fresh: false, imported_at: null, pub_count: 0 };
+  }
+
+  if (event.action === "list_photos_to_copy") {
+    const limit = Math.min(Math.max(Number(event.limit) || 25, 1), 100);
+    const { rows } = await db().query(
+      `select id, info->'photo'->>'url' as url from pubs
+        where info->'photo' ? 'url' and not (info->'photo' ? 'key')
+        order by id limit $1`,
+      [limit],
+    );
+    const left = await db().query(`select count(*)::int as n from pubs where info->'photo' ? 'url' and not (info->'photo' ? 'key')`);
+    return { items: rows, remaining: left.rows[0].n };
+  }
+
+  if (event.action === "set_photo_copies") {
+    let copied = 0, removed = 0;
+    for (const r of event.results ?? []) {
+      if (r.gone) {
+        await db().query(`update pubs set info = info - 'photo' where id = $1`, [r.id]);
+        removed++;
+      } else if (typeof r.key === "string" && /^public\/wikimedia\/[0-9a-f]{20}\.jpg$/.test(r.key)) {
+        await db().query(`update pubs set info = jsonb_set(info, '{photo,key}', to_jsonb($2::text)) where id = $1 and info ? 'photo'`, [r.id, r.key]);
+        copied++;
+      }
+    }
+    return { ok: true, copied, removed };
   }
 
   if (event.action === "list_pending_photos") {
