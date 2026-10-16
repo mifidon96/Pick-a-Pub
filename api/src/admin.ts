@@ -22,7 +22,7 @@ export type PubInput = {
 };
 
 // Only these keys are stored, each a short string or a boolean.
-const INFO_KEYS = ["opening_hours", "website", "phone", "operator", "beer_garden", "food", "real_ale", "wheelchair", "shows_sport"];
+const INFO_KEYS = ["opening_hours", "website", "phone", "operator", "beer_garden", "food", "real_ale", "wheelchair", "shows_sport", "dog"];
 function cleanInfo(info: unknown): Record<string, string | boolean> {
   const out: Record<string, string | boolean> = {};
   if (typeof info !== "object" || info === null) return out;

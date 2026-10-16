@@ -19,6 +19,7 @@ export function osmToPub(e) {
     real_ale: yesNo(t.real_ale),
     wheelchair: ["yes", "limited", "no"].includes(t.wheelchair) ? t.wheelchair : undefined,
     shows_sport: t.sport ? true : undefined,
+    dog: ["yes", "leashed", "outside"].includes(t.dog) ? true : t.dog === "no" ? false : undefined,
   };
   // Drop empty fields so the stored JSON stays small.
   for (const k of Object.keys(info)) if (info[k] === undefined) delete info[k];

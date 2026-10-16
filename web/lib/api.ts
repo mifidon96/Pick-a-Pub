@@ -18,6 +18,7 @@ export const SCORE_LABELS: Record<ScoreKey | "food", { label: string; hint: stri
 export const FACT_KEYS = [
   "shows_sky", "shows_tnt", "shows_amazon", "bookable",
   "outdoor_screen", "away_friendly", "family_friendly", "step_free",
+  "dog_friendly", "low_no_alcohol",
 ] as const;
 export type FactKey = (typeof FACT_KEYS)[number];
 
@@ -30,6 +31,8 @@ export const FACT_LABELS: Record<FactKey, string> = {
   away_friendly: "Away fans welcome",
   family_friendly: "Family friendly",
   step_free: "Step-free access",
+  dog_friendly: "Dog friendly",
+  low_no_alcohol: "Good low/no alcohol options",
 };
 
 type Scores = { [K in ScoreKey]: number | null } & { food: number | null };
@@ -54,7 +57,7 @@ export type Pub = Scores & Facts & {
 // Any field can be missing; text or yes/no.
 export type PubInfo = Partial<Record<
   | "opening_hours" | "screens" | "food" | "drinks" | "beer_garden" | "booking" | "real_ale"
-  | "wheelchair" | "website" | "phone" | "operator" | "notes" | "shows_sport",
+  | "wheelchair" | "website" | "phone" | "operator" | "notes" | "shows_sport" | "dog" | "low_no_alcohol",
   string | boolean
 >>;
 
@@ -100,9 +103,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-export function listPubs(lat: number, lng: number, radiusM: number, sort: "stars" | "distance", vibe: Vibe | "") {
-  const q = new URLSearchParams({ lat: String(lat), lng: String(lng), radius_m: String(radiusM), sort });
-  if (vibe) q.set("vibe", vibe);
+// Filters a visitor can switch on in the list.
+export const FILTERS = {
+  beer_garden: "Beer garden",
+  big_screens: "Big screens",
+  dog_friendly: "Dog friendly",
+  low_no_alcohol: "Low/no alcohol",
+} as const;
+export type Filter = keyof typeof FILTERS;
+
+export type Sort = "stars" | "distance" | ScoreKey | "food";
+
+export function listPubs(opts: { lat: number; lng: number; radiusM: number; sort: Sort; vibe: Vibe | ""; has: Filter[] }) {
+  const q = new URLSearchParams({ lat: String(opts.lat), lng: String(opts.lng), radius_m: String(opts.radiusM), sort: opts.sort });
+  if (opts.vibe) q.set("vibe", opts.vibe);
+  if (opts.has.length) q.set("has", opts.has.join(","));
   return request<{ pubs: Pub[] }>(`/pubs?${q}`);
 }
 

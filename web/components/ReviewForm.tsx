@@ -138,10 +138,10 @@ export default function ReviewForm({ pubId, existing, onSaved }: Props) {
 function Picker(props: { label: string; hint: string; value: number | null; onChange: (v: number | null) => void; clearable?: boolean }) {
   const { label, hint, value, onChange, clearable } = props;
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
       <div className="min-w-0 text-sm">
         <div className="font-medium">{label}</div>
-        <div className="truncate text-xs text-muted">{hint}</div>
+        <div className="text-xs text-muted">{hint}</div>
       </div>
       <div className="flex shrink-0 gap-1" role="group" aria-label={label}>
         {[1, 2, 3, 4, 5].map((n) => (
@@ -150,7 +150,7 @@ function Picker(props: { label: string; hint: string; value: number | null; onCh
             type="button"
             aria-pressed={value === n}
             onClick={() => onChange(clearable && value === n ? null : n)}
-            className={`h-9 w-9 rounded border text-sm ${value === n ? "border-amber bg-amber font-bold text-ink" : "border-line bg-chalk"}`}
+            className={`h-10 w-10 rounded border text-sm ${value === n ? "border-amber bg-amber font-bold text-ink" : "border-line bg-chalk"}`}
           >
             {n}
           </button>

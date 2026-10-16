@@ -20,7 +20,7 @@ export type ContentEntry = {
 // Details you can set under "about". Shown in this order on the pub page.
 export const ABOUT_KEYS = [
   "opening_hours", "screens", "food", "drinks", "beer_garden", "booking",
-  "real_ale", "wheelchair", "website", "phone", "operator", "notes",
+  "real_ale", "dog", "low_no_alcohol", "wheelchair", "website", "phone", "operator", "notes",
 ] as const;
 
 const str = (v: unknown, max: number, where: string): string | undefined => {

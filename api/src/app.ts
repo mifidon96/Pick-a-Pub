@@ -14,6 +14,7 @@ const SCORES = ["sightlines", "crowd", "screens", "seating", "commentary", "serv
 const FACTS = [
   "shows_sky", "shows_tnt", "shows_amazon", "bookable",
   "outdoor_screen", "away_friendly", "family_friendly", "step_free",
+  "dog_friendly", "low_no_alcohol",
 ] as const;
 
 class HttpError extends Error {
@@ -48,15 +49,35 @@ function text(v: unknown, name: string, max: number): string | null {
 
 const SCORE_COLS = `s.review_count, s.stars, s.score, ${SCORES.map((k) => `s.${k}`).join(", ")}, s.food, s.vibe,
   s.shows_sky, s.shows_tnt, s.shows_amazon, s.bookable, s.outdoor_screen,
-  s.away_friendly, s.family_friendly, s.step_free, s.last_reviewed_at`;
+  s.away_friendly, s.family_friendly, s.step_free, s.dog_friendly, s.low_no_alcohol, s.last_reviewed_at`;
 
-// GET /pubs?lat=&lng=&radius_m=&sort=stars|distance&vibe=calm|lively
+// Things a visitor can filter on. Each combines customer reviews (majority yes)
+// with pub details from OpenStreetMap and content/pubs.yaml.
+const INFO = `(p.info || coalesce(e.about, '{}'::jsonb))`;
+const FILTERS: Record<string, string> = {
+  beer_garden: `(${INFO}->>'beer_garden' = 'true' or s.outdoor_screen)`,
+  dog_friendly: `(${INFO}->>'dog' = 'true' or s.dog_friendly)`,
+  big_screens: `(s.screens >= 4)`,
+  low_no_alcohol: `(${INFO}->>'low_no_alcohol' = 'true' or s.low_no_alcohol)`,
+};
+// Sort by any scored category (best first), as well as stars or distance.
+const SORTABLE = new Set<string>([...SCORES, "food"]);
+
+// GET /pubs?lat=&lng=&radius_m=&sort=stars|distance|<category>&vibe=calm|lively&has=beer_garden,dog_friendly
 async function listPubs(req: Req): Promise<Res> {
   const lat = num(req.query.lat, "lat", -90, 90);
   const lng = num(req.query.lng, "lng", -180, 180);
   const radius = num(req.query.radius_m, "radius_m", 100, 10000, 3000);
   // Rated pubs first (by stars, then the unrounded score), then unrated pubs by distance.
-  const order = req.query.sort === "distance" ? "distance_m" : "s.stars desc nulls last, s.score desc nulls last, distance_m";
+  const sort = req.query.sort ?? "stars";
+  const order =
+    sort === "distance" ? "distance_m" :
+    sort === "stars" ? "s.stars desc nulls last, s.score desc nulls last, distance_m" :
+    SORTABLE.has(sort) ? `s.${sort} desc nulls last, s.stars desc nulls last, distance_m` :
+    (() => { throw bad("sort must be stars, distance or a category"); })();
+  const has = (req.query.has ?? "").split(",").filter(Boolean);
+  for (const h of has) if (!FILTERS[h]) throw bad(`unknown filter "${h}"`);
+  const filters = has.map((h) => `and ${FILTERS[h]}`).join("\n        ");
   // Vibe is 1 (calm) to 5 (lively). Pubs with no reviews yet are kept out of a vibe filter.
   const vibe =
     req.query.vibe === "calm" ? "and s.vibe <= 2.5" :
@@ -74,6 +95,7 @@ async function listPubs(req: Req): Promise<Res> {
       where earth_box(ll_to_earth($1, $2), $3) @> ll_to_earth(p.lat, p.lng)
         and earth_distance(ll_to_earth($1, $2), ll_to_earth(p.lat, p.lng)) <= $3
         ${vibe}
+        ${filters}
       order by ${order}
       limit 50`,
     [lat, lng, radius],

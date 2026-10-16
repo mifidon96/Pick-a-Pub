@@ -65,6 +65,10 @@ create table if not exists reviews (
   unique (pub_id, user_id)
 );
 
+-- Added after launch (feedback round 1).
+alter table reviews add column if not exists dog_friendly   boolean;
+alter table reviews add column if not exists low_no_alcohol boolean;  -- decent low or no alcohol drinks
+
 create index if not exists reviews_pub_idx on reviews (pub_id, updated_at desc);
 
 -- ---------------------------------------------------------------------------
@@ -105,7 +109,9 @@ insert into rating_settings default values on conflict (id) do nothing;
 --  3. Overall = weighted sum of the smoothed categories.
 --  4. Overall is capped at sightlines + sightline_cap.
 --  5. Stars = overall rounded to the nearest half, once a pub has min_reviews.
-create or replace view pub_scores as
+-- Dropped and recreated so new columns can be added anywhere in it.
+drop view if exists pub_scores;
+create view pub_scores as
 with s as (select * from rating_settings),
 weighted as (
   select r.*,
@@ -169,6 +175,8 @@ agg as (
     avg(away_friendly::int)   >= 0.5                  as away_friendly,
     avg(family_friendly::int) >= 0.5                  as family_friendly,
     avg(step_free::int)       >= 0.5                  as step_free,
+    avg(dog_friendly::int)    >= 0.5                  as dog_friendly,
+    avg(low_no_alcohol::int)  >= 0.5                  as low_no_alcohol,
     max(updated_at)                                   as last_reviewed_at
   from reviews group by pub_id
 )

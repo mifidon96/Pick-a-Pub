@@ -47,7 +47,8 @@ function ReviewView() {
 
   return (
     <div className="space-y-5">
-      <Link href={pubHref} className="text-sm text-pitch underline">Back to {pub.name}</Link>
+      {/* replace, not push, so the review page never ends up in the Back history */}
+      <button onClick={() => router.replace(pubHref)} className="text-sm text-pitch underline">Back to {pub.name}</button>
       <div>
         <h1 className="text-2xl font-bold">{mine ? "Update your review" : "Rate this pub"}</h1>
         <p className="text-sm text-muted">{pub.name}{pub.address ? `, ${pub.address}` : ""}</p>
@@ -58,7 +59,7 @@ function ReviewView() {
           key={mine ? `${mine.id}-${mine.updated_at}` : "new"}
           pubId={pub.id}
           existing={mine ?? undefined}
-          onSaved={() => router.push(pubHref)}
+          onSaved={() => router.replace(pubHref)}
         />
       ) : available ? (
         <div className="rounded-xl border border-line bg-card p-4 text-sm">

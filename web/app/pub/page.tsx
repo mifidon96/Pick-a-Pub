@@ -7,6 +7,7 @@ import { getPub, SCORE_KEYS, SCORE_LABELS, type PubDetail, type PubInfo, type Re
 import { FactChips, RatingBadge, ScoreBars } from "@/components/Scores";
 import ShareButton from "@/components/ShareButton";
 import { VerdictPanel } from "@/components/Verdict";
+import { lastList } from "@/lib/lastList";
 
 // Pub details: info, ratings and reviews. Reviewing happens on /pub/review/?id=.
 // The id is a query parameter so the whole site can be a static export.
@@ -52,7 +53,16 @@ function PubDetailView() {
         </div>
         <div className="min-w-0 space-y-2">
           <h1 className="text-2xl font-bold">{pub.name}</h1>
-          <p className="text-sm text-muted">{[pub.address, pub.postcode].filter(Boolean).join(", ")}</p>
+          {(pub.address || pub.postcode) && (
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([pub.name, pub.address, pub.postcode].filter(Boolean).join(", "))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-sm text-muted underline decoration-line underline-offset-2 hover:text-pitch"
+            >
+              {[pub.address, pub.postcode].filter(Boolean).join(", ")}
+            </a>
+          )}
           <FactChips pub={pub} />
         </div>
       </div>
@@ -119,6 +129,8 @@ const INFO_ROWS: [keyof PubInfo, string][] = [
   ["beer_garden", "Beer garden"],
   ["booking", "Booking"],
   ["real_ale", "Real ale"],
+  ["low_no_alcohol", "Low/no alcohol"],
+  ["dog", "Dogs welcome"],
   ["wheelchair", "Wheelchair access"],
   ["shows_sport", "Sport on TV"],
   ["operator", "Run by"],
@@ -183,10 +195,7 @@ function formatHours(raw: string): string {
 function BackToPubs() {
   const router = useRouter();
   return (
-    <button
-      onClick={() => (window.history.length > 1 ? router.back() : router.push("/"))}
-      className="text-sm text-pitch underline"
-    >
+    <button onClick={() => router.push(lastList())} className="text-sm text-pitch underline">
       Back to pubs
     </button>
   );
