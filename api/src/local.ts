@@ -3,6 +3,7 @@ import { handle } from "./app";
 import { runAdmin } from "./admin";
 import { fetchPubs } from "./importer";
 import { osmToPub } from "../../scripts/osm-to-pub.mjs";
+import { attachWikimediaPhotos } from "../../scripts/wikimedia.mjs";
 import { inUk, TILE_IMPORT_RADIUS_M, tileFor } from "./tiles";
 
 // Local stand-in for the importer Lambda: same API, imports straight into the local database.
@@ -13,7 +14,12 @@ async function localArea(method: string, path: string, lat: number, lng: number)
   if (st.fresh) return { status: 200, body: { status: "ready" } };
   if (method === "POST") {
     fetchPubs(t.lat, t.lng, TILE_IMPORT_RADIUS_M)
-      .then((els) => runAdmin({ action: "import_pubs", tile: t.tile, pubs: els.map(osmToPub).filter((p) => p.name && Number.isFinite(p.lat)) as never }))
+      .then(async (all) => {
+        const els = all.filter((e) => osmToPub(e).name);
+        const pubs = els.map(osmToPub);
+        await attachWikimediaPhotos(pubs, els);
+        return runAdmin({ action: "import_pubs", tile: t.tile, pubs: pubs as never });
+      })
       .then((r) => console.log("imported", t.tile, r))
       .catch((e) => console.error("area import failed", t.tile, e));
   }

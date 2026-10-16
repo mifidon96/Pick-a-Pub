@@ -92,6 +92,7 @@ async function listPubs(req: Req): Promise<Res> {
             e.photos->>0 as editorial_photo,
             (select ph.id from pub_photos ph where ph.pub_id = p.id and ph.status = 'approved'
               order by ph.created_at desc limit 1) as upload_photo,
+            p.info->'photo'->>'url' as wiki_photo,
             ${SCORE_COLS}
        from pubs p
        left join pub_scores s on s.pub_id = p.id
@@ -104,9 +105,10 @@ async function listPubs(req: Req): Promise<Res> {
       limit 50`,
     [lat, lng, radius],
   );
-  const pubs = rows.map(({ editorial_photo, upload_photo, ...p }) => ({
+  // Cover photo: ours first, then an approved upload, then Wikimedia.
+  const pubs = rows.map(({ editorial_photo, upload_photo, wiki_photo, ...p }) => ({
     ...p,
-    photo: editorial_photo ? editorialPhotoUrl(editorial_photo) : upload_photo ? publicPhotoUrl(upload_photo) : null,
+    photo: editorial_photo ? editorialPhotoUrl(editorial_photo) : upload_photo ? publicPhotoUrl(upload_photo) : wiki_photo ?? null,
   }));
   return { status: 200, body: { pubs } };
 }
@@ -139,6 +141,11 @@ async function getPub(id: number): Promise<Res> {
     ...(editorial_photos as string[]).map((f) => ({ url: editorialPhotoUrl(f), credit: "Pick-a-Pub" })),
     ...uploads.rows.map((r) => ({ url: publicPhotoUrl(r.id), credit: r.display_name ?? null })),
   ];
+  const wiki = pubRow.info?.photo;
+  if (wiki?.url) {
+    photos.push({ url: wiki.url, credit: `${wiki.author}, ${wiki.licence}`, link: wiki.page, licence_url: wiki.licence_url } as never);
+  }
+  if (pubRow.info) delete pubRow.info.photo; // shown in the gallery, not in "About this pub"
 
   const reviews = await db().query(
     `select r.id, u.display_name, ${SCORES.map((k) => `r.${k}`).join(", ")}, r.food, r.vibe,

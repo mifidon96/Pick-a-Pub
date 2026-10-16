@@ -5,8 +5,12 @@ import { db } from "../src/db";
 import { tileFor } from "../src/tiles";
 
 // Fake Overpass: two pubs near Cardiff Central.
-globalThis.fetch = (async () => new Response(JSON.stringify({ elements: [
-  { type: "node", id: 991, lat: 51.4760, lon: -3.1790, tags: { name: "Test Cardiff Pub", amenity: "pub", sport: "soccer", dog: "yes" } },
+globalThis.fetch = (async (url: string) => url.includes("commons.wikimedia.org") ? new Response(JSON.stringify({ query: { pages: { "5": {
+  title: "File:Test pub.jpg",
+  imageinfo: [{ thumburl: "https://upload.wikimedia.org/t.jpg", descriptionurl: "https://commons.wikimedia.org/wiki/File:Test_pub.jpg",
+    extmetadata: { Artist: { value: "Ann" }, LicenseShortName: { value: "CC BY 2.0" } } }],
+} } } })) : new Response(JSON.stringify({ elements: [
+  { type: "node", id: 991, lat: 51.4760, lon: -3.1790, tags: { name: "Test Cardiff Pub", amenity: "pub", sport: "soccer", dog: "yes", wikimedia_commons: "File:Test_pub.jpg" } },
   { type: "way", id: 992, center: { lat: 51.4800, lon: -3.1750 }, tags: { name: "Second Cardiff Bar", amenity: "bar" } },
   { type: "node", id: 993, lat: 51.48, lon: -3.17, tags: { amenity: "pub" } }, // no name: skipped
 ] }))) as typeof fetch;
@@ -40,6 +44,7 @@ assert.equal(asyncCalls.length, 1, "no second import for a fresh tile");
 
 const info = (await db().query("select info from pubs where source_id = 'node/991'")).rows[0].info;
 assert.equal(info.dog, true); assert.equal(info.shows_sport, true);
+assert.equal(info.photo?.author, "Ann", "Wikimedia photo stored with credit");
 
 r = await api("POST", "/areas/import", { body: { lat: 48.85, lng: 2.35 } }); // Paris
 assert.equal(r.statusCode, 400, "outside the UK refused");

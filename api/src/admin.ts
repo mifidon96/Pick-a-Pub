@@ -29,8 +29,8 @@ export type PubInput = {
 
 // Only these keys are stored, each a short string or a boolean.
 const INFO_KEYS = ["opening_hours", "website", "phone", "operator", "beer_garden", "food", "real_ale", "wheelchair", "shows_sport", "dog"];
-function cleanInfo(info: unknown): Record<string, string | boolean> {
-  const out: Record<string, string | boolean> = {};
+function cleanInfo(info: unknown): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
   if (typeof info !== "object" || info === null) return out;
   for (const k of INFO_KEYS) {
     const v = (info as Record<string, unknown>)[k];
@@ -38,6 +38,20 @@ function cleanInfo(info: unknown): Record<string, string | boolean> {
     else if (typeof v === "string" && v.trim()) out[k] = v.trim().slice(0, 300);
   }
   if (typeof out.website === "string" && !/^https?:\/\//i.test(out.website)) delete out.website;
+  const photo = (info as Record<string, unknown>).photo as Record<string, unknown> | undefined;
+  if (
+    photo && typeof photo.url === "string" && /^https:\/\/upload\.wikimedia\.org\//.test(photo.url) &&
+    typeof photo.page === "string" && /^https:\/\/commons\.wikimedia\.org\//.test(photo.page)
+  ) {
+    const str = (v: unknown, n: number) => (typeof v === "string" ? v.slice(0, n) : undefined);
+    out.photo = {
+      url: photo.url.slice(0, 500),
+      page: photo.page.slice(0, 500),
+      author: str(photo.author, 120) ?? "Unknown",
+      licence: str(photo.licence, 40) ?? "",
+      ...(typeof photo.licence_url === "string" && /^https?:\/\//.test(photo.licence_url) ? { licence_url: photo.licence_url.slice(0, 300) } : {}),
+    };
+  }
   return out;
 }
 

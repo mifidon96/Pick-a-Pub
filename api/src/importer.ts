@@ -1,6 +1,7 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 import { InvokeCommand, LambdaClient } from "@aws-sdk/client-lambda";
 import { osmToPub, type OsmElement } from "../../scripts/osm-to-pub.mjs";
+import { attachWikimediaPhotos } from "../../scripts/wikimedia.mjs";
 import { inUk, TILE_IMPORT_RADIUS_M, tileFor } from "./tiles";
 
 // "Search anywhere" importer. Runs OUTSIDE the private network so it can reach
@@ -53,11 +54,14 @@ out center tags;`;
 }
 
 async function runWorker(w: Worker) {
-  const pubs = (await fetchPubs(w.lat, w.lng, TILE_IMPORT_RADIUS_M))
-    .map(osmToPub)
-    .filter((p) => p.name && Number.isFinite(p.lat) && Number.isFinite(p.lng));
+  const elements = (await fetchPubs(w.lat, w.lng, TILE_IMPORT_RADIUS_M)).filter((e) => {
+    const p = osmToPub(e);
+    return p.name && Number.isFinite(p.lat) && Number.isFinite(p.lng);
+  });
+  const pubs = elements.map(osmToPub);
+  const photos = await attachWikimediaPhotos(pubs, elements);
   const result = await invokeAdmin({ action: "import_pubs", pubs, tile: w.tile });
-  console.log(JSON.stringify({ tile: w.tile, found: pubs.length, result }));
+  console.log(JSON.stringify({ tile: w.tile, found: pubs.length, photos, result }));
   return result;
 }
 
