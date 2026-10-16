@@ -86,8 +86,8 @@ function PubDetailView() {
         {pub.review_count ? (
           <>
             <ScoreBars pub={pub} />
-            {pub.stars === null && (
-              <p className="text-xs text-muted">The overall star rating appears once {3 - pub.review_count} more {3 - pub.review_count === 1 ? "person rates" : "people rate"} this pub.</p>
+            {pub.review_count < 3 && (
+              <p className="text-xs text-muted">Based on {pub.review_count} review{pub.review_count === 1 ? "" : "s"} so far, so it may change as more people rate it.</p>
             )}
           </>
         ) : (

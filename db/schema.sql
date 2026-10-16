@@ -76,7 +76,7 @@ create index if not exists reviews_pub_idx on reviews (pub_id, updated_at desc);
 -- ---------------------------------------------------------------------------
 
 -- How much each category counts. Generated from the survey by
--- scripts/survey_weights.py. "do nothing" keeps any weights loaded since.
+-- scripts/survey_weights.py (30 responses, Oct 2026). Applied on every deploy.
 create table if not exists rating_weights (
   category text primary key
     check (category in ('sightlines','crowd','screens','seating','commentary','service_speed','drink_prices')),
@@ -87,21 +87,26 @@ insert into rating_weights (category, weight) values
   ('sightlines', 0.19),
   ('screens', 0.15),
   ('crowd', 0.15),
+  ('commentary', 0.14),
   ('seating', 0.13),
-  ('commentary', 0.13),
   ('service_speed', 0.13),
-  ('drink_prices', 0.12)
-on conflict (category) do nothing;
+  ('drink_prices', 0.11)
+on conflict (category) do update set weight = excluded.weight;
 
 -- Tuning knobs, one row.
 create table if not exists rating_settings (
   id              boolean primary key default true check (id),
   prior_reviews   numeric not null default 3,    -- smoothing: pretend every pub has this many "average" reviews
   half_life_days  numeric not null default 365,  -- a review counts half as much after this long
-  min_reviews     integer not null default 3,    -- show stars from this many reviews
+  min_reviews     integer not null default 1,    -- show stars from this many reviews
   sightline_cap   numeric not null default 1     -- overall can be at most this far above sightlines
 );
-insert into rating_settings default values on conflict (id) do nothing;
+-- Settings are applied on every deploy: change them here.
+insert into rating_settings (id, prior_reviews, half_life_days, min_reviews, sightline_cap)
+values (true, 3, 365, 1, 1)
+on conflict (id) do update set
+  prior_reviews = excluded.prior_reviews, half_life_days = excluded.half_life_days,
+  min_reviews = excluded.min_reviews, sightline_cap = excluded.sightline_cap;
 
 -- Per pub: plain averages for display, plus the star rating.
 --  1. Each review is weighted by age (half-life decay).

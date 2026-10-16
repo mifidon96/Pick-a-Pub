@@ -6,17 +6,17 @@ who watched a match there. Launch area: Balham.
 ## The star rating
 
 Reviewers score 7 things from 1 to 5. The weights come from a survey of what
-football fans say matters (`scripts/survey_weights.py`, 20 responses so far):
+football fans say matters (`scripts/survey_weights.py`, 30 responses so far):
 
 | Category | Question | Weight |
 | --- | --- | --- |
 | View of a screen | Could you see it from where you sat? | 19% |
 | Screens | Size and picture quality | 15% |
 | Crowd | There to watch, not too packed | 15% (estimate) |
+| Commentary | Sound on and audible | 14% |
 | Seating | Chance of getting a seat | 13% |
-| Commentary | Sound on and audible | 13% |
 | Bar service | How quick | 13% (estimate) |
-| Drink prices | Value for money | 12% |
+| Drink prices | Value for money | 11% |
 
 Crowd and bar service were not asked directly in the survey, so they are estimates.
 
@@ -25,7 +25,7 @@ How a pub's stars are worked out (`pub_scores` view in `db/schema.sql`):
 2. Each category is smoothed towards the average of all pubs, as if every pub had 3 extra average reviews. One glowing review cannot top the chart.
 3. Overall = weighted sum of the categories.
 4. Capped at the pub's own view-of-a-screen score + 1. If you cannot see the TV, it cannot rate highly.
-5. Rounded to the nearest half star. Stars show from 3 reviews; before that the pub shows as "New".
+5. Rounded to the nearest half star. Stars show from the first review; pubs with fewer than 3 reviews say the rating may change. Equal stars are ordered by number of reviews.
 
 Not in the stars: **vibe** (calm to lively, a filter instead because people want
 opposite things), **food**, and yes/no facts (Sky, TNT, Amazon, bookable, outdoor

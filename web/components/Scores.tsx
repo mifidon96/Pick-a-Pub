@@ -32,7 +32,7 @@ export function RatingBadge({ pub }: { pub: Pub }) {
     <div className="rounded-lg bg-pitch px-2 py-2 text-center text-white">
       <div className="text-2xl font-bold leading-none">{pub.stars.toFixed(1)}</div>
       <div className="mt-1"><Stars value={pub.stars} size="text-xs" /></div>
-      <div className="mt-1 text-[11px] text-white/80">{n} reviews</div>
+      <div className="mt-1 text-[11px] text-white/80">{n} review{n === 1 ? "" : "s"}</div>
     </div>
   );
 }

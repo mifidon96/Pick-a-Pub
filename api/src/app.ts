@@ -73,7 +73,8 @@ async function listPubs(req: Req): Promise<Res> {
   const sort = req.query.sort ?? "stars";
   const order =
     sort === "distance" ? "distance_m" :
-    sort === "stars" ? "s.stars desc nulls last, s.score desc nulls last, distance_m" :
+    // Equal stars: more reviews first (a single glowing review should not top 20 good ones).
+    sort === "stars" ? "s.stars desc nulls last, s.review_count desc nulls last, s.score desc nulls last, distance_m" :
     SORTABLE.has(sort) ? `s.${sort} desc nulls last, s.stars desc nulls last, distance_m` :
     (() => { throw bad("sort must be stars, distance or a category"); })();
   const has = (req.query.has ?? "").split(",").filter(Boolean);
