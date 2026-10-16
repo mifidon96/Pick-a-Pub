@@ -1,0 +1,186 @@
+# Pick-a-Pub verdicts and pub details.
+#
+# Edit this file, then deploy with:  AWS_PROFILE=sandpit ./scripts/deploy.sh --skip-pubs
+# This file is the source of truth: removing a pub here removes its verdict from the site.
+# Verdicts are shown on their own and are never part of the customer star rating.
+#
+# Names are matched loosely ("The Regent" matches "Regent"). A name that matches no
+# pub is skipped with a warning in the deploy output, so check that output.
+#
+# Pick the pub either by its ID (shown at the bottom of each pub page on the site):
+#   - pub: "osm:node/123456789"
+# or by its exact name and area (balham or reading, from web/lib/areas.json):
+#   - name: "The Bedford"
+#     area: balham
+#
+# about: (all optional, overrides OpenStreetMap)
+#   opening_hours, screens, food, drinks, beer_garden (true/false), booking,
+#   real_ale (true/false), wheelchair, website (https://...), phone, operator, notes
+#
+# verdict: rating is required (1 to 5, halves allowed), the rest is optional
+#   summary (400 chars), best_for (80), tip (250), visited (YYYY-MM)
+#
+# Example (remove the # signs to use it):
+#
+# - name: "The Bedford"
+#   area: balham
+#   about:
+#     screens: "6 screens plus a projector upstairs"
+#     food: "Burgers and wings until 9pm"
+#     beer_garden: false
+#     booking: "Book online for big games"
+#   verdict:
+#     rating: 4.5
+#     summary: "Best spot in Balham for a big game. Loud, packed and every seat has a view."
+#     best_for: "Big games with a group"
+#     tip: "Get there 45 minutes early and head upstairs."
+#     visited: "2026-10"
+
+# ---------------------------------------------------------------------------
+# Starter details gathered from public sources on 15 Oct 2026 (source on each
+# entry). No verdicts yet: add your own verdict: block after you visit.
+# Re-check anything that matters before relying on it, as pubs change.
+# ---------------------------------------------------------------------------
+
+# ===== Balham =====
+
+# Source: thebedford.com/sport
+- name: "The Bedford"
+  area: balham
+  about:
+    screens: "HD screens in the main bars, giant projectors in the Club Room"
+    booking: "Walk-ins and table bookings"
+    website: "https://thebedford.com"
+    notes: "Its website says it shows Sky and BT Sport (now TNT Sports). The Ballroom and Cocktail Bar have their own screens for private sports parties."
+
+# Source: DesignMyNight listing "Live Sports at The Regent"
+- name: "The Regent"
+  area: balham
+  about:
+    screens: "Sport shown on the screens behind the arch"
+    food: "Pub food: burgers, grill, brunch and Sunday roasts"
+    booking: "Free table bookings for live sport through DesignMyNight"
+
+# Source: urbanpubsandbars.com/venues/hagen-hyde
+- name: "Hagen & Hyde"
+  area: balham
+  about:
+    food: "Neapolitan pizza and loaded fries"
+    beer_garden: true
+    booking: "Book for individual fixtures on its website"
+    website: "https://www.urbanpubsandbars.com/venues/hagen-hyde"
+    phone: "020 8161 0960"
+    notes: "Garden at the back of the pub plus a rooftop space."
+
+# Source: urbanpubsandbars.com/venues/the-cyclist
+- name: "The Cyclist"
+  area: balham
+  about:
+    food: "Small plates, gastropub classics, Sunday roasts and Saturday brunch"
+    booking: "Book for big tournaments on its website"
+    website: "https://www.urbanpubsandbars.com/venues/the-cyclist"
+    phone: "020 8066 2070"
+    notes: "Opposite Balham station, with a terrace. Formerly The Moon Under Water."
+
+# Source: DesignMyNight listings for Exhibit (World Cup 2026, Euros 2025)
+- name: "Exhibit"
+  area: balham
+  about:
+    screens: "Big screen for major tournaments"
+    food: "Pizzas, wings, sliders and fries"
+    booking: "Ticketed tournament packages with a guaranteed seat with a view"
+    notes: "Independent cocktail bar over three floors, with a private cinema and karaoke."
+
+# Source: ma.to/venue/thedevbalham
+- name: "The Devonshire"
+  area: balham
+  about:
+    screens: "Shows live sport all year round"
+    booking: "Dedicated spaces for private group bookings"
+    website: "https://linktr.ee/thedevbalham"
+
+# Source: visitlondon.com (The Avalon)
+- name: "The Avalon"
+  area: balham
+  about:
+    food: "Steaks, schnitzels, sharing plates, Sunday roasts and a kids' menu"
+    beer_garden: true
+    phone: "020 8675 8613"
+    notes: "Shows live sport. Covered courtyard, terrace and a large beer garden."
+
+# Source: DesignMyNight "6 Nations VIP Pub Package" (The Grove)
+- name: "The Grove"
+  area: balham
+  about:
+    booking: "Group packages for big tournaments, including your own 52 inch screen"
+
+# Source: ma.to event listing (Balham Bowls Club)
+- name: "Balham Bowls Club"
+  area: balham
+  about:
+    screens: "Big screens for major matches"
+
+# ===== Reading =====
+
+# Source: markethousereading.com/live-sport
+- name: "Market House"
+  area: reading
+  about:
+    screens: "Huge screens and projectors"
+    food: "Burgers, pizzas, wings and sharers, ordered to your table through the app"
+    booking: "Book a table for live sport on its website"
+    website: "https://www.markethousereading.com"
+    phone: "0118 216 1750"
+    operator: "Young's"
+    notes: "Shows Sky Sports and TNT Sports. Over 18s only after 8pm."
+
+# Source: DesignMyNight "Live Sports" listing (O'Neill's Reading)
+- name: "O'Neill's"
+  area: reading
+  about:
+    screens: "Multiple screens all over the pub"
+    booking: "Group bookings and VIP booths: reading@oneills.co.uk"
+    notes: "Live music as well as sport."
+
+# Sources: reading.camra.org.uk (Three Guineas), Wikipedia, DesignMyNight World Cup listing
+- name: "The Three Guineas"
+  area: reading
+  about:
+    beer_garden: true
+    real_ale: true
+    operator: "Fuller's"
+    booking: "Bookable tables for big tournaments; pre-ordering drinks recommended on busy match days"
+    notes: "Grade II listed former station booking hall at Reading station, with a large outdoor seating area on Station Square."
+
+# Source: reading.camra.org.uk (Nags Head)
+- name: "The Nags Head"
+  area: reading
+  about:
+    food: "Basic hot food: toasties, sausage rolls and BBQ pork or beef rolls"
+    beer_garden: true
+    real_ale: true
+    notes: "Sport on TV. Around 12 real ales and 13 ciders and perries."
+
+# Sources: reading.camra.org.uk (Monks Retreat), Stonegate press release (2017)
+- name: "Monks Retreat"
+  area: reading
+  about:
+    real_ale: true
+    notes: "CAMRA describes a strong emphasis on televised sport. Its 2017 refurbishment added two big HD screens and booths with their own TVs."
+
+# Source: reading.camra.org.uk (Allied Arms)
+- name: "Allied Arms"
+  area: reading
+  about:
+    beer_garden: true
+    real_ale: true
+    notes: "Sport on TV. Large walled garden with patio heaters. Card payments only."
+
+# Source: DesignMyNight (Oakford Social Club)
+- name: "Oakford Social Club"
+  area: reading
+  about:
+    food: "Burgers all day from Ruby Jean's Diner"
+    beer_garden: true
+    booking: "Book online"
+    notes: "Shows big matches and rugby internationals. Live music and DJs at night."

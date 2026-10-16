@@ -1,0 +1,38 @@
+terraform {
+  required_version = ">= 1.6"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
+  }
+
+  # Recommended before a real deploy: move state to S3 so the DB password in
+  # state is not sitting on your laptop.
+  # backend "s3" {
+  #   bucket       = "<your-state-bucket>"
+  #   key          = "pickapub/terraform.tfstate"
+  #   region       = "eu-west-2"
+  #   use_lockfile = true
+  # }
+}
+
+provider "aws" {
+  region = var.region
+
+  default_tags {
+    tags = {
+      Project   = var.project
+      ManagedBy = "terraform"
+    }
+  }
+}
