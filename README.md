@@ -81,6 +81,13 @@ at most every 30 days. UK only, and the import route is throttled.
 - Nothing appears until approved:
   `AWS_PROFILE=sandpit ./scripts/photos.sh list`, then `approve <id>` or `reject <id>`.
   Unreviewed uploads are deleted after 14 days.
+- Free photos from Wikimedia Commons are added automatically during pub imports
+  when OpenStreetMap links the pub to one (directly or through Wikidata). Only
+  CC0, CC BY, CC BY-SA and public domain photos are used, credited with author
+  and licence and linked to their Commons page. Shown after our own photos and uploads.
+  A copy of each is saved in our photos bucket (`public/wikimedia/`) by the importer
+  Lambda, so the site does not depend on Wikimedia; each deploy catches up any
+  missing copies, and photos deleted on Wikimedia are dropped.
 - Our own photos: add them to `content/photos/` and list them in `content/pubs.yaml`
   (see `content/photos/README.md`). They go live on the next deploy.
 

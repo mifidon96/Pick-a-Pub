@@ -34,8 +34,13 @@ export default function PubPhotos({ pubId, pubName, photos }: { pubId: number; p
               {/* eslint-disable-next-line @next/next/no-img-element -- static export, no image optimiser */}
               <img src={p.url} alt={`${pubName}`} loading="lazy" className="h-44 w-64 rounded-xl object-cover" />
               {p.credit && (
-                <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[11px] text-white">
-                  {p.credit === "Pick-a-Pub" ? "Pick-a-Pub" : `by ${p.credit}`}
+                <span className="absolute bottom-1 left-1 max-w-[calc(100%-0.5rem)] truncate rounded bg-black/60 px-1.5 py-0.5 text-[11px] text-white">
+                  {p.link ? (
+                    // Wikimedia photos: author and licence, linking to the source page (required by the licence)
+                    <a href={p.link} target="_blank" rel="noopener noreferrer" className="underline">
+                      Photo: {p.credit}, Wikimedia Commons
+                    </a>
+                  ) : p.credit === "Pick-a-Pub" ? "Pick-a-Pub" : `by ${p.credit}`}
                 </span>
               )}
             </li>

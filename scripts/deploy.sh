@@ -75,6 +75,12 @@ if [[ "$SKIP_PUBS" == false ]]; then
   admin_invoke "$ROOT/pubs.json"
 fi
 
+step "Copying Wikimedia photos into our bucket"
+tmp="$(mktemp)"
+aws lambda invoke --function-name "$(tf_out importer_function)" --cli-binary-format raw-in-base64-out \
+  --payload '{"copy_photos":true}' --cli-read-timeout 150 "$tmp" >/dev/null && cat "$tmp" && echo
+rm -f "$tmp"
+
 if compgen -G "$ROOT/content/photos/*" >/dev/null; then
   step "Uploading our own photos (content/photos/)"
   aws s3 sync "$ROOT/content/photos" "s3://$(tf_out photos_bucket)/public/editorial/" \

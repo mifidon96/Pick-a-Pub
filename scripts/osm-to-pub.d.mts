@@ -15,6 +15,6 @@ export type PubInput = {
   postcode: string | null;
   lat: number | undefined;
   lng: number | undefined;
-  info: Record<string, string | boolean>;
+  info: Record<string, unknown>;
 };
 export function osmToPub(e: OsmElement): PubInput;

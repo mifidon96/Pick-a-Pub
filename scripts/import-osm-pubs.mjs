@@ -9,6 +9,7 @@
 // Data is © OpenStreetMap contributors (ODbL). Keep the credit in the site footer.
 import { readFileSync, writeFileSync } from "node:fs";
 import { osmToPub } from "./osm-to-pub.mjs";
+import { attachWikimediaPhotos } from "./wikimedia.mjs";
 
 const areas = JSON.parse(readFileSync(new URL("../web/lib/areas.json", import.meta.url), "utf8"));
 const only = process.argv[2];
@@ -38,10 +39,13 @@ out center tags;`;
 
 const byId = new Map();
 for (const a of chosen) {
-  const pubs = (await fetchArea(a))
-    .map(osmToPub)
-    .filter((p) => p.name && Number.isFinite(p.lat) && Number.isFinite(p.lng));
-  console.log(`${a.label}: ${pubs.length} pubs`);
+  const elements = (await fetchArea(a)).filter((e) => {
+    const p = osmToPub(e);
+    return p.name && Number.isFinite(p.lat) && Number.isFinite(p.lng);
+  });
+  const pubs = elements.map(osmToPub);
+  const photos = await attachWikimediaPhotos(pubs, elements);
+  console.log(`${a.label}: ${pubs.length} pubs, ${photos} with a Wikimedia photo`);
   for (const p of pubs) byId.set(p.source_id, p);
 }
 
