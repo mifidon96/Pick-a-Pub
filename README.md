@@ -64,6 +64,13 @@ Each pub page shows details from OpenStreetMap where listed: opening hours,
 website, phone, food, beer garden, real ale, wheelchair access, plus a
 directions link. Reviews are on a separate page, `/pub/review/?id=`.
 
+## Map
+
+The list has a List / Map switch (`?view=map`). Pins show the stars; tap one for
+the pub. Leaflet with OpenStreetMap's own tiles, which are free for light use with
+attribution. If traffic grows, switch `TILES` in `web/components/PubMap.tsx` to a
+paid tile service and add it to the CSP in `infra/web.tf`.
+
 ## Pick-a-Pub verdicts
 
 Our own reviews live in `content/pubs.yaml`: a rating (1 to 5 in halves), summary,

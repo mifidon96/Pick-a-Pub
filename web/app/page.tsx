@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { areaStatus, ensureArea, FILTERS, listPubs, SCORE_KEYS, SCORE_LABELS, TEAMS, type Filter, type Pub, type Sort, type Vibe } from "@/lib/api";
 import PlaceSearch from "@/components/PlaceSearch";
+import PubMap from "@/components/PubMap";
 import { FactChips, RatingBadge } from "@/components/Scores";
 import { VerdictChip } from "@/components/Verdict";
 import { saveLastList } from "@/lib/lastList";
@@ -67,6 +68,7 @@ function PubSearch() {
     const v = params.get("fans") ?? "";
     return TEAMS.some((t) => t.id === v) ? v : "";
   });
+  const [view, setView] = useState<"list" | "map">(() => (params.get("view") === "map" ? "map" : "list"));
   const [result, setResult] = useState<{ key: string; pubs?: Pub[]; error?: string }>({ key: "" });
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState("");
@@ -85,6 +87,7 @@ function PubSearch() {
     if (vibe) q.set("vibe", vibe);
     if (has.length) q.set("has", has.join(","));
     if (fans) q.set("fans", fans);
+    if (view === "map") q.set("view", "map");
     const s = q.toString();
     return s ? `/?${s}` : "/";
   })();
@@ -279,7 +282,30 @@ function PubSearch() {
         </div>
       )}
 
-      <ul className="space-y-3">
+      {!loading && result.pubs && result.pubs.length > 0 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted">{result.pubs.length} pub{result.pubs.length === 1 ? "" : "s"}</p>
+          <div className="inline-flex rounded border border-line bg-card p-0.5 text-sm" role="group" aria-label="View">
+            {(["list", "map"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={view === v}
+                onClick={() => setView(v)}
+                className={`rounded px-3 py-1 ${view === v ? "bg-pitch text-white" : "text-ink"}`}
+              >
+                {v === "list" ? "List" : "Map"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {view === "map" && !loading && result.pubs && result.pubs.length > 0 && (
+        <PubMap pubs={result.pubs} centre={centre} radiusM={radius} />
+      )}
+
+      <ul className={`space-y-3 ${view === "map" ? "hidden" : ""}`}>
         {!loading &&
           result.pubs?.map((pub) => (
             <li key={pub.id}>

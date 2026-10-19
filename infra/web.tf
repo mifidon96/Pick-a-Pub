@@ -52,7 +52,7 @@ locals {
     "https://${aws_s3_bucket.photos.bucket_regional_domain_name}",               # photo uploads
     "https://api.postcodes.io",                                                  # place search
   ]
-  csp_img = ["'self'", "data:", "blob:", "https://upload.wikimedia.org"]
+  csp_img = ["'self'", "data:", "blob:", "https://upload.wikimedia.org", "https://tile.openstreetmap.org"] # photos, map tiles
   csp = join("; ", [
     "default-src 'self'",
     # Next.js puts small inline scripts in every page of a static export.
