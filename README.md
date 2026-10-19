@@ -191,6 +191,31 @@ alarms emailed to `ALERT_EMAIL`: Lambda errors, API throttles, API 5xx, slow API
 (p95 over 3 s), and database CPU, memory and storage. AWS emails a confirmation
 link the first time; click it or no alarms arrive.
 
+### Custom domain and email
+
+Off until you set it. To switch on:
+
+1. Buy a domain in Route 53 (Domains > Register), e.g. `pickapub.co.uk`. Route 53
+   creates the hosted zone for you. (Bought elsewhere? Create a hosted zone in
+   Route 53 and point the domain's name servers at it.)
+2. In `infra/envs/prod.tfvars` set `domain_name = "pickapub.co.uk"`, and in
+   `infra/envs/dev.tfvars` set `domain_name = "dev.pickapub.co.uk"` and
+   `hosted_zone_name = "pickapub.co.uk"`. Merge to main.
+   Terraform creates the certificate, DNS records, and verifies the domain for
+   email (DKIM and DMARC).
+3. SES > Account dashboard > Request production access (use case: sign-up codes
+   for a small website). AWS usually answers within a day.
+4. Then set `use_ses_email = true` in both files and merge. Sign-up and password
+   emails now come from `no-reply@<domain>` instead of Cognito's address, without
+   the 50-a-day limit.
+
+### Security headers
+
+CloudFront adds a Content-Security-Policy, HSTS, X-Frame-Options, nosniff,
+Referrer-Policy and Permissions-Policy to every response (`infra/web.tf`). The
+CSP lists every outside site the browser may talk to: add a new service there
+or the browser will block it.
+
 ### Taking it down
 
 - dev: Actions > Tear down dev, or `terraform -chdir=infra destroy -var-file=envs/dev.tfvars`
@@ -199,10 +224,26 @@ link the first time; click it or no alarms arrive.
   in `infra/envs/prod.tfvars` and deploy before destroying. The photos bucket
   must be emptied first.
 
+## Privacy and moderation
+
+- `/privacy/` explains what is stored and why. Set `CONTACT_EMAIL` in
+  `web/lib/site.ts` once you have an address for data requests.
+- `/account/` lets a signed-in user download everything held about them (JSON)
+  or delete their account: reviews, photos, reports and the Cognito sign-in.
+- Every review has a Report link. Three open reports hide the review from the pub
+  page and the star rating until you decide:
+
+```bash
+AWS_PROFILE=personal ./scripts/moderate.sh list
+AWS_PROFILE=personal ./scripts/moderate.sh hide|restore|delete <review id>
+```
+
 ## Known gaps
 
 - [ ] The database password is a Lambda environment variable and sits in Terraform
   state (S3, encrypted). Secrets Manager needs a VPC endpoint, which costs money.
+- [ ] Deleted photos are removed from S3 but CloudFront may serve a cached copy
+  at the same (unguessable) address until it expires.
 - [ ] The deploy roles use AdministratorAccess. Fine for a personal account; scope
   them down before anyone else can merge to main.
 

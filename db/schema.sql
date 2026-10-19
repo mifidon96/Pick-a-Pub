@@ -71,6 +71,23 @@ alter table reviews add column if not exists low_no_alcohol boolean;  -- decent 
 
 create index if not exists reviews_pub_idx on reviews (pub_id, updated_at desc);
 
+-- Moderation. A hidden review is left out of the pub page and the star rating.
+alter table reviews add column if not exists hidden boolean not null default false;
+
+-- "Report this review". The reporter only needs to be signed in, so user_id is
+-- the Cognito id with no foreign key (they may never have written a review).
+-- Three open reports hide a review until it is looked at (scripts/moderate.sh).
+create table if not exists review_reports (
+  review_id   integer not null references reviews(id) on delete cascade,
+  user_id     text    not null,
+  reason      text    not null check (reason in ('spam', 'offensive', 'fake', 'personal', 'other')),
+  note        text    check (char_length(note) <= 300),
+  created_at  timestamptz not null default now(),
+  resolved_at timestamptz,
+  primary key (review_id, user_id)
+);
+create index if not exists review_reports_open_idx on review_reports (review_id) where resolved_at is null;
+
 -- ---------------------------------------------------------------------------
 -- Star rating
 -- ---------------------------------------------------------------------------
@@ -122,6 +139,7 @@ weighted as (
   select r.*,
          power(0.5, extract(epoch from (now() - r.updated_at)) / 86400.0 / s.half_life_days) as w
   from reviews r cross join s
+  where not r.hidden
 ),
 long as (
   select wt.pub_id, wt.w, c.category, c.score
@@ -183,7 +201,7 @@ agg as (
     avg(dog_friendly::int)    >= 0.5                  as dog_friendly,
     avg(low_no_alcohol::int)  >= 0.5                  as low_no_alcohol,
     max(updated_at)                                   as last_reviewed_at
-  from reviews group by pub_id
+  from reviews where not hidden group by pub_id
 )
 select a.*,
   round(least(o.raw, o.sightlines + s.sightline_cap)::numeric, 2)::float8 as score,

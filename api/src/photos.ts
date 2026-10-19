@@ -69,3 +69,13 @@ export async function publish(id: string): Promise<void> {
 export async function removePending(id: string): Promise<void> {
   await client().send(new DeleteObjectCommand({ Bucket: bucket(), Key: `pending/${id}.jpg` }));
 }
+
+// Delete account: remove every copy of the user's photos, pending or public.
+export async function deletePhotoObjects(ids: string[]): Promise<void> {
+  if (!bucket()) return;
+  for (const id of ids) {
+    for (const key of [`pending/${id}.jpg`, `public/${id}.jpg`]) {
+      await client().send(new DeleteObjectCommand({ Bucket: bucket(), Key: key }));
+    }
+  }
+}

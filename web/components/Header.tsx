@@ -13,14 +13,21 @@ export default function Header() {
           Pick-a-Pub <span className="font-normal text-amber">match day</span>
         </Link>
         {devMode ? (
-          <span className="rounded bg-pitch-dark px-2 py-1 text-xs">dev user</span>
+          <Link href="/account/" className="rounded bg-pitch-dark px-2 py-1 text-xs">dev user</Link>
         ) : ready && available ? (
-          <button
-            onClick={signedIn ? signOut : signIn}
-            className="rounded border border-white/40 px-3 py-1 text-sm hover:bg-pitch-dark"
-          >
-            {signedIn ? "Sign out" : "Sign in"}
-          </button>
+          <div className="flex items-center gap-2">
+            {signedIn && (
+              <Link href="/account/" className="rounded px-2 py-1 text-sm hover:bg-pitch-dark">
+                Account
+              </Link>
+            )}
+            <button
+              onClick={signedIn ? signOut : signIn}
+              className="rounded border border-white/40 px-3 py-1 text-sm hover:bg-pitch-dark"
+            >
+              {signedIn ? "Sign out" : "Sign in"}
+            </button>
+          </div>
         ) : null}
       </div>
     </header>

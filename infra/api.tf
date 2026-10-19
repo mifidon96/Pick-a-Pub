@@ -39,7 +39,7 @@ locals {
     PGSSL      = "1"
     # Photos: uploads go to this bucket, approved ones are served by CloudFront.
     PHOTOS_BUCKET   = aws_s3_bucket.photos.bucket
-    PHOTOS_BASE_URL = "https://${aws_cloudfront_distribution.web.domain_name}"
+    PHOTOS_BASE_URL = local.site_url
     # Makes Node trust the RDS certificate authority shipped with the Lambda runtime.
     NODE_EXTRA_CA_CERTS = "/var/runtime/ca-cert.pem"
   }
@@ -108,8 +108,8 @@ resource "aws_apigatewayv2_api" "main" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_origins = concat(["https://${aws_cloudfront_distribution.web.domain_name}", "http://localhost:3000"], var.extra_origins)
-    allow_methods = ["GET", "PUT", "POST", "OPTIONS"]
+    allow_origins = concat([local.site_url, "http://localhost:3000"], var.extra_origins)
+    allow_methods = ["GET", "PUT", "POST", "DELETE", "OPTIONS"]
     allow_headers = ["content-type", "authorization"]
     max_age       = 3600
   }
@@ -198,4 +198,22 @@ resource "aws_lambda_permission" "apigw" {
   function_name = aws_lambda_function.api.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*"
+}
+
+resource "aws_apigatewayv2_route" "report_review" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /reviews/{id}/report"
+  target             = "integrations/${aws_apigatewayv2_integration.api.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# "Download my data" and "Delete my account".
+resource "aws_apigatewayv2_route" "me" {
+  for_each           = toset(["GET", "DELETE"])
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "${each.value} /me"
+  target             = "integrations/${aws_apigatewayv2_integration.api.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }

@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { editorialPhotoUrl, photoKeyUrl, photosEnabled, presignUpload, publicPhotoUrl } from "./photos";
+import { deletePhotoObjects, editorialPhotoUrl, photoKeyUrl, photosEnabled, presignUpload, publicPhotoUrl } from "./photos";
 
 export type Req = {
   method: string;
@@ -156,7 +156,7 @@ async function getPub(id: number): Promise<Res> {
             ${FACTS.map((f) => `r.${f}`).join(", ")},
             r.match_label, r.comment, r.updated_at
        from reviews r join users u on u.id = r.user_id
-      where r.pub_id = $1
+      where r.pub_id = $1 and not r.hidden
       order by r.updated_at desc
       limit 30`,
     [id],
@@ -250,10 +250,96 @@ async function putReview(id: number, req: Req): Promise<Res> {
   return { status: 200, body: { ok: true } };
 }
 
+// POST /reviews/{id}/report  (signed in). Three open reports hide the review
+// until it has been checked (scripts/moderate.sh).
+export const REPORT_REASONS = ["spam", "offensive", "fake", "personal", "other"] as const;
+const HIDE_AFTER_REPORTS = 3;
+async function reportReview(id: number, req: Req): Promise<Res> {
+  if (!req.userId) throw new HttpError(401, "Sign in to report a review");
+  const b = (typeof req.body === "object" && req.body !== null ? req.body : {}) as Record<string, unknown>;
+  const reason = b.reason;
+  if (typeof reason !== "string" || !(REPORT_REASONS as readonly string[]).includes(reason)) {
+    throw bad(`reason must be one of ${REPORT_REASONS.join(", ")}`);
+  }
+  const note = text(b.note, "note", 300);
+  const review = await db().query("select user_id from reviews where id = $1", [id]);
+  if (!review.rows[0]) throw new HttpError(404, "Review not found");
+  if (review.rows[0].user_id === req.userId) throw bad("You cannot report your own review");
+  await db().query(
+    `insert into review_reports (review_id, user_id, reason, note) values ($1, $2, $3, $4)
+     on conflict (review_id, user_id) do update set reason = excluded.reason, note = excluded.note, resolved_at = null`,
+    [id, req.userId, reason, note],
+  );
+  await db().query(
+    `update reviews set hidden = true
+      where id = $1 and (select count(*) from review_reports where review_id = $1 and resolved_at is null) >= $2`,
+    [id, HIDE_AFTER_REPORTS],
+  );
+  return { status: 200, body: { ok: true } };
+}
+
+// GET /me  (signed in). Everything we hold about the caller, for "Download my data".
+async function exportMe(req: Req): Promise<Res> {
+  if (!req.userId) throw new HttpError(401, "Sign in first");
+  const user = await db().query("select id, display_name, created_at from users where id = $1", [req.userId]);
+  const reviews = await db().query(
+    `select r.*, p.name as pub_name from reviews r join pubs p on p.id = r.pub_id
+      where r.user_id = $1 order by r.updated_at desc`,
+    [req.userId],
+  );
+  const photos = await db().query(
+    `select ph.id, ph.status, ph.created_at, p.name as pub_name from pub_photos ph join pubs p on p.id = ph.pub_id
+      where ph.user_id = $1 order by ph.created_at desc`,
+    [req.userId],
+  );
+  const reports = await db().query(
+    "select review_id, reason, note, created_at from review_reports where user_id = $1 order by created_at desc",
+    [req.userId],
+  );
+  return {
+    status: 200,
+    body: {
+      exported_at: new Date().toISOString(),
+      user: user.rows[0] ?? null,
+      reviews: reviews.rows.map(({ user_id: _u, ...r }) => r),
+      photos: photos.rows.map((p) => ({ ...p, url: p.status === "approved" ? publicPhotoUrl(p.id) : null })),
+      reports: reports.rows,
+    },
+  };
+}
+
+// DELETE /me  (signed in). Removes the caller's reviews, photos, reports and
+// profile. The browser then deletes the Cognito sign-in itself (lib/auth.tsx).
+async function deleteMe(req: Req): Promise<Res> {
+  if (!req.userId) throw new HttpError(401, "Sign in first");
+  const photos = await db().query("select id from pub_photos where user_id = $1", [req.userId]);
+  const ids = photos.rows.map((r) => r.id as string);
+  await deletePhotoObjects(ids);
+  const client = await db().connect();
+  try {
+    await client.query("begin");
+    await client.query("delete from review_reports where user_id = $1", [req.userId]);
+    // Reviews and photo records go with the user row (on delete cascade).
+    const removed = await client.query("delete from users where id = $1", [req.userId]);
+    await client.query("commit");
+    return { status: 200, body: { ok: true, deleted: removed.rowCount === 1, photos: ids.length } };
+  } catch (e) {
+    await client.query("rollback");
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 export async function handle(req: Req): Promise<Res> {
   try {
     const path = req.path.replace(/\/+$/, "") || "/";
     if (req.method === "GET" && path === "/pubs") return await listPubs(req);
+    if (path === "/me" && req.method === "GET") return await exportMe(req);
+    if (path === "/me" && req.method === "DELETE") return await deleteMe(req);
+
+    const rr = /^\/reviews\/(\d{1,9})\/report$/.exec(path);
+    if (rr && req.method === "POST") return await reportReview(Number(rr[1]), req);
 
     const ph = /^\/pubs\/(\d{1,9})\/photos$/.exec(path);
     if (ph && req.method === "POST") return await startPhotoUpload(Number(ph[1]), req);
