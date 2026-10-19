@@ -1,4 +1,4 @@
-import { FACT_KEYS, FACT_LABELS, SCORE_KEYS, SCORE_LABELS, vibeLabel, type Pub } from "@/lib/api";
+import { FACT_KEYS, FACT_LABELS, SCORE_KEYS, SCORE_LABELS, teamName, vibeLabel, type Pub } from "@/lib/api";
 
 // Five stars, filled to the nearest half.
 export function Stars({ value, size = "text-base" }: { value: number; size?: string }) {
@@ -62,9 +62,11 @@ export function ScoreBars({ pub }: { pub: Pub }) {
 export function FactChips({ pub }: { pub: Pub }) {
   const yes = FACT_KEYS.filter((k) => pub[k] === true);
   const vibe = vibeLabel(pub.vibe);
-  if (!yes.length && !vibe) return null;
+  const fans = teamName(pub.fan_team);
+  if (!yes.length && !vibe && !fans) return null;
   return (
     <ul className="flex flex-wrap gap-1.5">
+      {fans && <li className="rounded-full bg-pitch px-2 py-0.5 text-xs text-white">{fans} fans</li>}
       {vibe && <li className="rounded-full bg-amber/20 px-2 py-0.5 text-xs text-ink">{vibe}</li>}
       {yes.map((k) => (
         <li key={k} className="rounded-full border border-pitch/30 bg-pitch/5 px-2 py-0.5 text-xs text-pitch">

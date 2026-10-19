@@ -15,7 +15,8 @@
 #
 # about: (all optional, overrides OpenStreetMap)
 #   opening_hours, screens, food, drinks, beer_garden (true/false), booking,
-#   real_ale (true/false), wheelchair, website (https://...), phone, operator, notes
+#   real_ale (true/false), wheelchair, website (https://...), phone, operator, notes,
+#   fans (team id from web/lib/teams.json, e.g. arsenal, reading), away_fans (true/false)
 #
 # verdict: rating is required (1 to 5, halves allowed), the rest is optional
 #   summary (400 chars), best_for (80), tip (250), visited (YYYY-MM)
@@ -29,6 +30,7 @@
 #     food: "Burgers and wings until 9pm"
 #     beer_garden: false
 #     booking: "Book online for big games"
+#     away_fans: true
 #   verdict:
 #     rating: 4.5
 #     summary: "Best spot in Balham for a big game. Loud, packed and every seat has a view."

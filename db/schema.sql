@@ -71,6 +71,18 @@ alter table reviews add column if not exists low_no_alcohol boolean;  -- decent 
 
 create index if not exists reviews_pub_idx on reviews (pub_id, updated_at desc);
 
+-- Quick review (feedback round 2): only sightlines, screens and crowd are
+-- required; the rest can be left blank. Blank categories count as the area
+-- average in the star rating (see pub_scores).
+alter table reviews alter column seating       drop not null;
+alter table reviews alter column commentary    drop not null;
+alter table reviews alter column service_speed drop not null;
+alter table reviews alter column drink_prices  drop not null;
+alter table reviews alter column vibe          drop not null;
+
+-- Home and away: which team's fans mostly watch here (a slug from web/lib/teams.json).
+alter table reviews add column if not exists fan_team text check (fan_team ~ '^[a-z0-9-]{2,40}$');
+
 -- Moderation. A hidden review is left out of the pub page and the star rating.
 alter table reviews add column if not exists hidden boolean not null default false;
 
@@ -149,18 +161,26 @@ long as (
     ('seating', wt.seating), ('commentary', wt.commentary),
     ('service_speed', wt.service_speed), ('drink_prices', wt.drink_prices)
   ) as c(category, score)
+  where c.score is not null  -- quick reviews leave some categories blank
 ),
 prior as (
   select category, sum(w * score) / nullif(sum(w), 0) as mean
   from long group by category
 ),
+cat_sums as (
+  select pub_id, category, sum(w * score) as sws, sum(w) as sw
+  from long group by pub_id, category
+),
+-- Every reviewed pub gets every category. One nobody has scored yet sits at
+-- the area average, so a pub with only quick reviews is not rated on 3 of 7.
 smoothed as (
-  select l.pub_id, l.category,
-         (s.prior_reviews * p.mean + sum(l.w * l.score)) / (s.prior_reviews + sum(l.w)) as score
-  from long l
-  join prior p using (category)
+  select pr.pub_id, p.category,
+         (s.prior_reviews * p.mean + coalesce(cs.sws, 0)) / (s.prior_reviews + coalesce(cs.sw, 0)) as score
+  from (select distinct pub_id from weighted) pr
+  cross join prior p
   cross join s
-  group by l.pub_id, l.category, s.prior_reviews, p.mean
+  left join cat_sums cs on cs.pub_id = pr.pub_id and cs.category = p.category
+  where p.mean is not null
 ),
 -- The cap uses the pub's own (unsmoothed) sightline average: if its reviewers
 -- say they could not see the screen, the area average should not rescue it.
@@ -202,14 +222,26 @@ agg as (
     avg(low_no_alcohol::int)  >= 0.5                  as low_no_alcohol,
     max(updated_at)                                   as last_reviewed_at
   from reviews where not hidden group by pub_id
+),
+-- The team most reviewers say this pub's fans support, if at least half agree.
+fans as (
+  select pub_id, fan_team from (
+    select pub_id, fan_team, count(*) as n,
+           sum(count(*)) over (partition by pub_id) as total,
+           row_number() over (partition by pub_id order by count(*) desc, max(updated_at) desc) as rn
+    from reviews where not hidden and fan_team is not null
+    group by pub_id, fan_team
+  ) x
+  where rn = 1 and n * 2 >= total
 )
-select a.*,
+select a.*, f.fan_team,
   round(least(o.raw, o.sightlines + s.sightline_cap)::numeric, 2)::float8 as score,
   case when a.review_count >= s.min_reviews
        then (round(least(o.raw, o.sightlines + s.sightline_cap) * 2) / 2)::float8
   end                                                                    as stars
 from agg a
 join overall o using (pub_id)
+left join fans f using (pub_id)
 cross join s;
 
 -- ---------------------------------------------------------------------------

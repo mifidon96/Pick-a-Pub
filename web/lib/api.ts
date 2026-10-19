@@ -1,3 +1,14 @@
+import TEAMS_JSON from "./teams.json";
+
+// Clubs and national teams, for "whose fans watch here".
+export type Team = { id: string; name: string };
+export const TEAMS: Team[] = TEAMS_JSON;
+const TEAM_NAMES = new Map(TEAMS.map((t) => [t.id, t.name]));
+export const teamName = (id: string | null | undefined) => (id ? TEAM_NAMES.get(id) ?? null : null);
+
+// A quick review only needs these three (the most important to fans).
+export const QUICK_KEYS = ["sightlines", "screens", "crowd"] as const;
+
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/+$/, "");
 
 // Scored categories, in order of how much they count towards the stars.
@@ -44,6 +55,7 @@ export type Pub = Scores & Facts & {
   vibe: number | null; // 1 calm ... 5 lively
   verdict_rating?: number | null; // Pick-a-Pub's own rating, if we have reviewed it
   photo?: string | null; // cover photo for the list
+  fan_team?: string | null; // team id: whose fans mostly watch here
   id: number;
   name: string;
   address: string | null;
@@ -58,7 +70,8 @@ export type Pub = Scores & Facts & {
 // Any field can be missing; text or yes/no.
 export type PubInfo = Partial<Record<
   | "opening_hours" | "screens" | "food" | "drinks" | "beer_garden" | "booking" | "real_ale"
-  | "wheelchair" | "website" | "phone" | "operator" | "notes" | "shows_sport" | "dog" | "low_no_alcohol",
+  | "wheelchair" | "website" | "phone" | "operator" | "notes" | "shows_sport" | "dog" | "low_no_alcohol"
+  | "fans" | "away_fans",
   string | boolean
 >>;
 
@@ -81,20 +94,23 @@ export function vibeLabel(v: number | null): string | null {
   return v === null ? null : VIBE_LABELS[Math.min(4, Math.max(0, Math.round(v) - 1))]!;
 }
 
-export type Review = { [K in ScoreKey]: number } & Facts & {
+// Quick reviews leave everything but QUICK_KEYS blank (null).
+export type Review = { [K in ScoreKey]: number | null } & Facts & {
   id: number;
   display_name: string;
   food: number | null;
-  vibe: number;
+  vibe: number | null;
+  fan_team: string | null;
   match_label: string | null;
   comment: string | null;
   updated_at: string;
 };
 
-export type ReviewInput = { [K in ScoreKey]: number } & Partial<Facts> & {
+export type ReviewInput = { [K in ScoreKey]: number | null } & Partial<Facts> & {
   display_name: string;
   food: number | null;
-  vibe: number;
+  vibe: number | null;
+  fan_team: string | null;
   match_label: string;
   comment: string;
 };
@@ -112,13 +128,15 @@ export const FILTERS = {
   big_screens: "Big screens",
   dog_friendly: "Dog friendly",
   low_no_alcohol: "Low/no alcohol",
+  away_friendly: "Away fans welcome",
 } as const;
 export type Filter = keyof typeof FILTERS;
 
 export type Sort = "stars" | "distance" | ScoreKey | "food";
 
-export function listPubs(opts: { lat: number; lng: number; radiusM: number; sort: Sort; vibe: Vibe | ""; has: Filter[] }) {
+export function listPubs(opts: { lat: number; lng: number; radiusM: number; sort: Sort; vibe: Vibe | ""; has: Filter[]; fans?: string }) {
   const q = new URLSearchParams({ lat: String(opts.lat), lng: String(opts.lng), radius_m: String(opts.radiusM), sort: opts.sort });
+  if (opts.fans) q.set("fans", opts.fans);
   if (opts.vibe) q.set("vibe", opts.vibe);
   if (opts.has.length) q.set("has", opts.has.join(","));
   return request<{ pubs: Pub[] }>(`/pubs?${q}`);
@@ -130,7 +148,8 @@ export function getPub(id: number) {
 
 // Signed-in only: the caller's own review of this pub, if they have one.
 export function getMyReview(id: number, headers: HeadersInit) {
-  return request<{ review: Review | null }>(`/pubs/${id}/review`, { headers });
+  // display_name: the name used on earlier reviews, to pre-fill a first review here.
+  return request<{ review: Review | null; display_name: string | null }>(`/pubs/${id}/review`, { headers });
 }
 
 export function putReview(id: number, input: ReviewInput, headers: HeadersInit) {
