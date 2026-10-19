@@ -11,7 +11,7 @@ resource "aws_vpc" "main" {
   enable_dns_support   = true
   enable_dns_hostnames = true
 
-  tags = { Name = var.project }
+  tags = { Name = local.name }
 }
 
 resource "aws_subnet" "private" {
@@ -21,11 +21,11 @@ resource "aws_subnet" "private" {
   cidr_block        = cidrsubnet(aws_vpc.main.cidr_block, 8, count.index)
   availability_zone = data.aws_availability_zones.available.names[count.index]
 
-  tags = { Name = "${var.project}-private-${count.index}" }
+  tags = { Name = "${local.name}-private-${count.index}" }
 }
 
 resource "aws_security_group" "lambda" {
-  name_prefix = "${var.project}-lambda-"
+  name_prefix = "${local.name}-lambda-"
   description = "API and admin Lambdas"
   vpc_id      = aws_vpc.main.id
 
@@ -33,7 +33,7 @@ resource "aws_security_group" "lambda" {
 }
 
 resource "aws_security_group" "db" {
-  name_prefix = "${var.project}-db-"
+  name_prefix = "${local.name}-db-"
   description = "Postgres, reachable only from the Lambdas"
   vpc_id      = aws_vpc.main.id
 
@@ -56,7 +56,7 @@ resource "aws_vpc_endpoint" "s3" {
   vpc_endpoint_type = "Gateway"
   route_table_ids   = [aws_vpc.main.main_route_table_id]
 
-  tags = { Name = "${var.project}-s3" }
+  tags = { Name = "${local.name}-s3" }
 }
 
 resource "aws_vpc_security_group_egress_rule" "lambda_to_s3" {

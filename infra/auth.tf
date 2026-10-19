@@ -1,5 +1,5 @@
 resource "aws_cognito_user_pool" "main" {
-  name                     = var.project
+  name                     = local.name
   username_attributes      = ["email"]
   auto_verified_attributes = ["email"]
 
@@ -26,7 +26,7 @@ resource "aws_cognito_user_pool_domain" "main" {
 }
 
 resource "aws_cognito_user_pool_client" "web" {
-  name         = "${var.project}-web"
+  name         = "${local.name}-web"
   user_pool_id = aws_cognito_user_pool.main.id
 
   # Browser app: no client secret, authorisation code flow with PKCE.

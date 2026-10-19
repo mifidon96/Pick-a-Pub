@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Review uploaded photos before they go public.
 #
-#   AWS_PROFILE=sandpit ./scripts/photos.sh list            photos waiting, with private preview links
-#   AWS_PROFILE=sandpit ./scripts/photos.sh approve <id>    make it public on the pub page
-#   AWS_PROFILE=sandpit ./scripts/photos.sh reject <id>     delete it
+#   AWS_PROFILE=personal ./scripts/photos.sh list            photos waiting, with private preview links
+#   AWS_PROFILE=personal ./scripts/photos.sh approve <id>    make it public on the pub page
+#   AWS_PROFILE=personal ./scripts/photos.sh reject <id>     delete it
+#
+# Works on prod. For dev: PICKAPUB_ENV=dev ./scripts/photos.sh list
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export AWS_PAGER=""
-FN="$(terraform -chdir="$ROOT/infra" output -raw admin_function)"
+FN="pickapub-${PICKAPUB_ENV:-prod}-admin"
 
 invoke() {
   local out; out="$(mktemp)"

@@ -4,12 +4,12 @@ resource "random_password" "db" {
 }
 
 resource "aws_db_subnet_group" "main" {
-  name       = var.project
+  name       = local.name
   subnet_ids = aws_subnet.private[*].id
 }
 
 resource "aws_db_instance" "main" {
-  identifier     = var.project
+  identifier     = local.name
   engine         = "postgres"
   engine_version = "16"
   instance_class = var.db_instance_class
@@ -31,5 +31,5 @@ resource "aws_db_instance" "main" {
   auto_minor_version_upgrade = true
   deletion_protection        = var.deletion_protection
   skip_final_snapshot        = !var.deletion_protection
-  final_snapshot_identifier  = var.deletion_protection ? "${var.project}-final" : null
+  final_snapshot_identifier  = var.deletion_protection ? "${local.name}-final" : null
 }

@@ -16,7 +16,7 @@ data "aws_iam_policy_document" "lambda_assume" {
 }
 
 resource "aws_iam_role" "lambda" {
-  name               = "${var.project}-lambda"
+  name               = "${local.name}-lambda"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
 }
 
@@ -46,17 +46,17 @@ locals {
 }
 
 resource "aws_cloudwatch_log_group" "api" {
-  name              = "/aws/lambda/${var.project}-api"
+  name              = "/aws/lambda/${local.name}-api"
   retention_in_days = 14
 }
 
 resource "aws_cloudwatch_log_group" "admin" {
-  name              = "/aws/lambda/${var.project}-admin"
+  name              = "/aws/lambda/${local.name}-admin"
   retention_in_days = 14
 }
 
 resource "aws_lambda_function" "api" {
-  function_name    = "${var.project}-api"
+  function_name    = "${local.name}-api"
   role             = aws_iam_role.lambda.arn
   runtime          = "nodejs22.x"
   architectures    = ["arm64"]
@@ -81,7 +81,7 @@ resource "aws_lambda_function" "api" {
 # Same code, different entry point. Not exposed through API Gateway:
 # call it with `aws lambda invoke` to run migrations or import pubs.
 resource "aws_lambda_function" "admin" {
-  function_name    = "${var.project}-admin"
+  function_name    = "${local.name}-admin"
   role             = aws_iam_role.lambda.arn
   runtime          = "nodejs22.x"
   architectures    = ["arm64"]
@@ -104,7 +104,7 @@ resource "aws_lambda_function" "admin" {
 }
 
 resource "aws_apigatewayv2_api" "main" {
-  name          = var.project
+  name          = local.name
   protocol_type = "HTTP"
 
   cors_configuration {

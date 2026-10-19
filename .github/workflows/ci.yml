@@ -1,0 +1,113 @@
+# Checks every pull request: tests, builds, Terraform format and validation,
+# and a Terraform plan against prod so you can see what a merge would change.
+name: CI
+
+on:
+  pull_request:
+  workflow_call: # deploy.yml runs these checks before deploying
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: API tests and build
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: api } }
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: test, POSTGRES_DB: pickapub_test }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env: { PGHOST: localhost, PGUSER: postgres, PGPASSWORD: test, PGDATABASE: pickapub_test }
+    steps:
+      - uses: actions/checkout@v5
+      - name: Load schema and sample data
+        run: psql -v ON_ERROR_STOP=1 -q -f ../db/schema.sql -f ../db/dev_seed.sql
+      - uses: actions/setup-node@v5
+        with: { node-version: 22, cache: npm, cache-dependency-path: api/package-lock.json }
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  db:
+    name: Star rating tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: test, POSTGRES_DB: pickapub_test }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env: { PGHOST: localhost, PGUSER: postgres, PGPASSWORD: test, PGDATABASE: pickapub_test }
+    steps:
+      - uses: actions/checkout@v5
+      - run: psql -v ON_ERROR_STOP=1 -q -f db/schema.sql
+      - run: psql -v ON_ERROR_STOP=1 -f db/tests/rating_test.sql
+
+  web:
+    name: Website lint and build
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: web } }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run build
+        env: { NEXT_PUBLIC_API_URL: "https://api.example.invalid" }
+
+  terraform:
+    name: Terraform format and validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: "~1.13.0" }
+      - run: terraform fmt -check -recursive infra
+      - run: terraform -chdir=infra init -backend=false -input=false
+      - run: terraform -chdir=infra validate
+      - run: terraform -chdir=infra/bootstrap init -backend=false -input=false
+      - run: terraform -chdir=infra/bootstrap validate
+
+  plan:
+    name: Terraform plan (prod)
+    # Needs the AWS setup from scripts/bootstrap.sh. Pull requests from forks get
+    # no AWS access, so they skip this.
+    if: github.event_name == 'pull_request' && vars.AWS_ACCOUNT_ID != '' && github.event.pull_request.head.repo.full_name == github.repository
+    needs: terraform
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # sign in to AWS with OIDC
+    env:
+      TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22, cache: npm, cache-dependency-path: api/package-lock.json }
+      - name: Build Lambda bundles (Terraform zips them)
+        run: cd api && npm ci --no-audit --no-fund && npm run build
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: "~1.13.0", terraform_wrapper: false }
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/pickapub-github-plan
+          aws-region: eu-west-2
+      - name: Plan
+        run: |
+          terraform -chdir=infra init -input=false \
+            -backend-config="bucket=pickapub-tfstate-${{ vars.AWS_ACCOUNT_ID }}" \
+            -backend-config="key=prod/terraform.tfstate"
+          # Read-only role: it cannot take the state lock, and does not need to.
+          terraform -chdir=infra plan -input=false -lock=false -no-color \
+            -var-file=envs/prod.tfvars -out=tfplan | tee plan.txt
+          {
+            echo "### Terraform plan (prod)"
+            echo '```'
+            grep -E '^(Plan:|No changes)' plan.txt || echo "See the job log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

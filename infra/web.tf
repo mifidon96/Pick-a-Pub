@@ -1,7 +1,7 @@
 # Static site: private S3 bucket, served only through CloudFront.
 
 resource "aws_s3_bucket" "web" {
-  bucket_prefix = "${var.project}-web-"
+  bucket_prefix = "${local.name}-web-"
   force_destroy = true
 }
 
@@ -14,7 +14,7 @@ resource "aws_s3_bucket_public_access_block" "web" {
 }
 
 resource "aws_cloudfront_origin_access_control" "web" {
-  name                              = "${var.project}-web"
+  name                              = "${local.name}-web"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
@@ -23,7 +23,7 @@ resource "aws_cloudfront_origin_access_control" "web" {
 # The Next.js export writes /pub/index.html. S3 behind CloudFront does not
 # resolve folder URLs on its own, so rewrite "/pub/" to "/pub/index.html".
 resource "aws_cloudfront_function" "index_rewrite" {
-  name    = "${var.project}-index-rewrite"
+  name    = "${local.name}-index-rewrite"
   runtime = "cloudfront-js-2.0"
   publish = true
   code    = <<-JS
@@ -48,7 +48,7 @@ resource "aws_cloudfront_distribution" "web" {
   enabled             = true
   default_root_object = "index.html"
   price_class         = "PriceClass_100"
-  comment             = var.project
+  comment             = local.name
 
   origin {
     origin_id                = "s3"
