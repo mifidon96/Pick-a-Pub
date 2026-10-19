@@ -212,3 +212,34 @@ export function exportMyData(headers: HeadersInit) {
 export function deleteMyData(headers: HeadersInit) {
   return request<{ ok: true; deleted: boolean; photos: number }>(`/me`, { method: "DELETE", headers });
 }
+
+// Where's it showing? Upcoming matches and the pubs to watch them in.
+export type Channel = "sky" | "tnt" | "amazon" | "free" | "blackout" | "unknown";
+export type Fixture = {
+  id: number;
+  competition: string;
+  competition_name: string;
+  kickoff: string;
+  status: string;
+  home_name: string;
+  away_name: string;
+  home_team: string | null;
+  away_team: string | null;
+  channel: Channel;
+  channel_name: string;
+};
+// Fact on reviews that says a pub has this channel.
+export const CHANNEL_FACT: Partial<Record<Channel, FactKey>> = { sky: "shows_sky", tnt: "shows_tnt", amazon: "shows_amazon" };
+// UK TV listings, because our channel is a best guess.
+export const LISTINGS_URL = "https://www.live-footballontv.com/";
+
+export function listFixtures(opts: { days?: number; team?: string } = {}) {
+  const q = new URLSearchParams({ days: String(opts.days ?? 7) });
+  if (opts.team) q.set("team", opts.team);
+  return request<{ fixtures: Fixture[] }>(`/fixtures?${q}`);
+}
+
+export function fixturePubs(id: number, lat: number, lng: number, radiusM: number) {
+  const q = new URLSearchParams({ lat: String(lat), lng: String(lng), radius_m: String(radiusM) });
+  return request<{ fixture: Fixture; pubs: (Pub & { has_channel: boolean | null })[] }>(`/fixtures/${id}/pubs?${q}`);
+}

@@ -217,3 +217,11 @@ resource "aws_apigatewayv2_route" "me" {
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
+
+# "Where's it showing?" (public).
+resource "aws_apigatewayv2_route" "fixtures" {
+  for_each  = toset(["GET /fixtures", "GET /fixtures/{id}/pubs"])
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = each.value
+  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+}

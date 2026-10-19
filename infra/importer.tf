@@ -69,8 +69,9 @@ resource "aws_lambda_function" "importer" {
 
   environment {
     variables = {
-      ADMIN_FUNCTION = aws_lambda_function.admin.function_name
-      PHOTOS_BUCKET  = aws_s3_bucket.photos.bucket
+      ADMIN_FUNCTION        = aws_lambda_function.admin.function_name
+      PHOTOS_BUCKET         = aws_s3_bucket.photos.bucket
+      FOOTBALL_DATA_API_KEY = var.football_data_api_key
     }
   }
 
@@ -102,4 +103,33 @@ resource "aws_lambda_permission" "apigw_importer" {
   function_name = aws_lambda_function.importer.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*"
+}
+
+# "Where's it showing?": refresh upcoming matches every 6 hours.
+locals {
+  # Whether a key is set is not itself secret.
+  fixtures_enabled = nonsensitive(var.football_data_api_key != "")
+}
+
+resource "aws_cloudwatch_event_rule" "fixtures" {
+  count               = local.fixtures_enabled ? 1 : 0
+  name                = "${local.name}-fixtures"
+  description         = "Refresh upcoming matches from football-data.org"
+  schedule_expression = "rate(6 hours)"
+}
+
+resource "aws_cloudwatch_event_target" "fixtures" {
+  count = local.fixtures_enabled ? 1 : 0
+  rule  = aws_cloudwatch_event_rule.fixtures[0].name
+  arn   = aws_lambda_function.importer.arn
+  input = jsonencode({ fixtures = true })
+}
+
+resource "aws_lambda_permission" "fixtures" {
+  count         = local.fixtures_enabled ? 1 : 0
+  statement_id  = "AllowEventBridgeFixtures"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.importer.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.fixtures[0].arn
 }

@@ -5,6 +5,7 @@ import { attachWikimediaPhotos } from "../../scripts/wikimedia.mjs";
 import { overpass } from "../../scripts/overpass.mjs";
 import { inUk, TILE_IMPORT_RADIUS_M, tileFor } from "./tiles";
 import { copyPhotos, type ToCopy } from "./mirror";
+import { fetchFixtures } from "./fixtures";
 
 // "Search anywhere" importer. Runs OUTSIDE the private network so it can reach
 // OpenStreetMap without a NAT gateway; it never touches the database itself and
@@ -19,6 +20,15 @@ const lambda = new LambdaClient({});
 
 type Worker = { worker: true; tile: string; lat: number; lng: number };
 type CopyJob = { copy_photos: true };
+type FixturesJob = { fixtures: true }; // every 6 hours (EventBridge) and after each deploy
+
+// Fetch the next 10 days of matches and hand them to the admin Lambda.
+export async function refreshFixtures(fetchFn: typeof fetch = fetch) {
+  const key = process.env.FOOTBALL_DATA_API_KEY;
+  if (!key) return { skipped: "FOOTBALL_DATA_API_KEY not set" };
+  const fixtures = await fetchFixtures(key, 10, fetchFn);
+  return invokeAdmin({ action: "set_fixtures", fixtures });
+}
 
 // Copy Wikimedia photos into our bucket, in batches, for up to ~60 seconds.
 export async function copyPendingPhotos(fetchFn: typeof fetch = fetch) {
@@ -82,8 +92,9 @@ async function runWorker(w: Worker) {
   return result;
 }
 
-export async function handler(event: APIGatewayProxyEventV2 | Worker | CopyJob): Promise<APIGatewayProxyResultV2 | unknown> {
+export async function handler(event: APIGatewayProxyEventV2 | Worker | CopyJob | FixturesJob): Promise<APIGatewayProxyResultV2 | unknown> {
   if ("worker" in event) return runWorker(event);
+  if ("fixtures" in event) return refreshFixtures();
   if ("copy_photos" in event) return copyPendingPhotos(); // run by the deploy script
 
   const method = event.requestContext.http.method;
