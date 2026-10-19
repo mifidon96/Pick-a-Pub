@@ -6,11 +6,13 @@ import { TILE_MAX_AGE_DAYS } from "./tiles";
 import { pendingExists, previewUrl, publish, removePending } from "./photos";
 import { guessChannel, type FixtureInput } from "./fixtures";
 import { stats } from "./analytics";
+import { setupAppUser } from "./dbuser";
 
 // Admin actions. On AWS these run through a separate Lambda that is not behind
 // API Gateway, so only someone with AWS credentials can call them.
 export type AdminEvent =
   | { action: "migrate" }
+  | { action: "setup_db_user"; master_password: string }
   | { action: "pub_count" }
   | { action: "import_pubs"; pubs: PubInput[]; tile?: string }
   | { action: "tile_status"; tile: string }
@@ -67,6 +69,9 @@ function cleanInfo(info: unknown): Record<string, unknown> {
 }
 
 export async function runAdmin(event: AdminEvent): Promise<unknown> {
+  // Run by deploy.sh before migrate. Never echo the password back.
+  if (event.action === "setup_db_user") return setupAppUser(event.master_password);
+
   if (event.action === "migrate") {
     await db().query(schema);
     return { ok: true, action: "migrate" };

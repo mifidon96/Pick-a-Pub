@@ -44,3 +44,9 @@ output "environment" {
 output "dashboard_url" {
   value = "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards/dashboard/${aws_cloudwatch_dashboard.main.dashboard_name}"
 }
+
+# Used once per deploy by deploy.sh to set up the app's database login.
+output "db_master_password" {
+  value     = random_password.db.result
+  sensitive = true
+}
