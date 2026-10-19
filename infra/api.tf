@@ -126,6 +126,13 @@ resource "aws_apigatewayv2_stage" "default" {
     throttling_burst_limit = 40
   }
 
+  # Page counts: one per page view, so a firm cap stops anyone flooding the table.
+  route_settings {
+    route_key              = aws_apigatewayv2_route.events.route_key
+    throttling_rate_limit  = 10
+    throttling_burst_limit = 20
+  }
+
   # Starting an area import fetches from OpenStreetMap, so keep it slow.
   route_settings {
     route_key              = aws_apigatewayv2_route.import_area.route_key
@@ -223,5 +230,12 @@ resource "aws_apigatewayv2_route" "fixtures" {
   for_each  = toset(["GET /fixtures", "GET /fixtures/{id}/pubs"])
   api_id    = aws_apigatewayv2_api.main.id
   route_key = each.value
+  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+}
+
+# Cookie-free page counts (api/src/analytics.ts). Public.
+resource "aws_apigatewayv2_route" "events" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "POST /events"
   target    = "integrations/${aws_apigatewayv2_integration.api.id}"
 }

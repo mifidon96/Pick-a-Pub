@@ -1,5 +1,6 @@
 import { db } from "./db";
 import teams from "../../web/lib/teams.json";
+import { recordView } from "./analytics";
 import { CHANNEL_NAMES, COMPETITION_NAMES, type Channel } from "./fixtures";
 import { deletePhotoObjects, editorialPhotoUrl, photoKeyUrl, photosEnabled, presignUpload, publicPhotoUrl } from "./photos";
 
@@ -9,6 +10,7 @@ export type Req = {
   query: Record<string, string | undefined>;
   body: unknown;
   userId?: string; // set only when the caller is signed in
+  client?: { ip?: string; ua?: string; host?: string }; // for anonymous page counts only
 };
 export type Res = { status: number; body: unknown };
 
@@ -409,6 +411,11 @@ export async function handle(req: Req): Promise<Res> {
   try {
     const path = req.path.replace(/\/+$/, "") || "/";
     if (req.method === "GET" && path === "/pubs") return await listPubs(req);
+    if (path === "/events" && req.method === "POST") {
+      const b = (typeof req.body === "object" && req.body !== null ? req.body : {}) as Record<string, unknown>;
+      await recordView({ path: b.path, referrer: b.referrer, app: b.app, ip: req.client?.ip, ua: req.client?.ua, ownHost: req.client?.host });
+      return { status: 202, body: { ok: true } };
+    }
     if (path === "/fixtures" && req.method === "GET") return await listFixtures(req);
     const fx = /^\/fixtures\/(\d{1,9})\/pubs$/.exec(path);
     if (fx && req.method === "GET") return await fixturePubs(Number(fx[1]), req);

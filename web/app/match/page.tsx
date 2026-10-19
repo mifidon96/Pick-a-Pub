@@ -9,6 +9,7 @@ import {
 } from "@/lib/api";
 import PubCard from "@/components/PubCard";
 import { lastList } from "@/lib/lastList";
+import { usePageInfo } from "@/lib/pageInfo";
 import AREAS from "@/lib/areas.json";
 
 // Where's it showing?
@@ -167,6 +168,13 @@ function MatchPubs({ id }: { id: number }) {
       live = false;
     };
   }, [id, centre, key]);
+
+  usePageInfo(data?.fixture
+    ? {
+        title: `${data.fixture.home_name} v ${data.fixture.away_name}: where it's showing`,
+        description: `Pubs showing ${data.fixture.home_name} v ${data.fixture.away_name}, ${ukDay(data.fixture.kickoff)} at ${ukTime(data.fixture.kickoff)}, rated by football fans.`,
+      }
+    : null);
 
   if (!data || data.key !== key) return <p className="text-sm text-muted">Loading...</p>;
   if (data.error || !data.fixture) {

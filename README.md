@@ -278,6 +278,25 @@ or the browser will block it.
   in `infra/envs/prod.tfvars` and deploy before destroying. The photos bucket
   must be emptied first.
 
+## Launch basics
+
+- **Terms of use** at `/terms/`, linked in the footer and where people sign in to review.
+- **Titles and descriptions** for every page; pub and match pages set theirs once loaded
+  (e.g. "The Bedford: football rating"). `web/lib/pageInfo.ts`.
+- **Share preview**: `web/public/og.png` shows in WhatsApp, iMessage and social links.
+  Shared links use the live address via `NEXT_PUBLIC_SITE_URL`, set by `deploy.sh`.
+- **sitemap.xml and robots.txt** are written by `scripts/sitemap.mjs` on every deploy,
+  listing the featured areas and their pubs.
+- **Page counts without cookies** (so no cookie banner): each page view records the page,
+  the referring site and a visitor code that changes daily. No IP address is stored,
+  nobody can be followed across days, rows go after 90 days, and Do Not Track is
+  respected. See them with:
+
+```bash
+AWS_PROFILE=personal ./scripts/stats.sh       # last 7 days
+AWS_PROFILE=personal ./scripts/stats.sh 30    # last 30 days
+```
+
 ## Privacy and moderation
 
 - `/privacy/` explains what is stored and why. Set `CONTACT_EMAIL` in

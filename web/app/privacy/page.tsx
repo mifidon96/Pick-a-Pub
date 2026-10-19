@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CONTACT_EMAIL, PRIVACY_UPDATED } from "@/lib/site";
 
-export const metadata: Metadata = { title: "Privacy | Pick-a-Pub" };
+export const metadata: Metadata = { title: "Privacy", description: "What Pick-a-Pub stores about you, why, and how to download or delete it." };
 
 // Plain-English privacy notice. Keep it in step with what the code actually stores
 // (db/schema.sql) and with the account page (download and delete).
@@ -28,8 +28,12 @@ export default function PrivacyPage() {
           <li><b>Reports you make</b> about other reviews.</li>
         </ul>
         <p>
-          If you just browse, we store nothing about you. Your location is only used in your browser to find nearby
-          pubs and is not saved. We do not use advertising or tracking cookies, and we do not sell or share your data.
+          If you just browse, we only count page views, without cookies: which page, which site linked to it, and an
+          anonymous code that changes every day so we can tell roughly how many people visited. We never store your IP
+          address, cannot follow you from one day to the next, and delete the counts after 90 days. If your browser
+          sends &quot;Do Not Track&quot;, we do not count you at all. Your location is only used in your browser to find
+          nearby pubs and is not saved. We do not use advertising or tracking cookies, and we do not sell or share your
+          data.
         </p>
       </Section>
 

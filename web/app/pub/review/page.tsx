@@ -67,8 +67,9 @@ function ReviewView() {
       ) : available ? (
         <div className="rounded-xl border border-line bg-card p-4 text-sm">
           <p>
-            Sign in to rate {pub.name}. It takes a minute and we only use your email to sign you in
-            (<Link href="/privacy/" className="text-pitch underline">privacy</Link>).
+            Sign in to rate {pub.name}. It takes a minute and we only use your email to sign you in. By posting
+            you agree to the <Link href="/terms/" className="text-pitch underline">terms</Link> and{" "}
+            <Link href="/privacy/" className="text-pitch underline">privacy notice</Link>.
           </p>
           <button onClick={signIn} className="mt-3 rounded bg-pitch px-4 py-2 font-medium text-white">Sign in to review</button>
         </div>

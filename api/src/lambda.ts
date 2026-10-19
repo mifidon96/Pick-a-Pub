@@ -22,8 +22,21 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
     query: event.queryStringParameters ?? {},
     body,
     userId: typeof sub === "string" ? sub : undefined,
+    client: {
+      ip: event.requestContext.http.sourceIp,
+      ua: event.requestContext.http.userAgent,
+      host: originHost(event.headers?.origin),
+    },
   });
   return { statusCode: res.status, headers: { "content-type": "application/json" }, body: JSON.stringify(res.body) };
+}
+
+function originHost(origin: string | undefined): string | undefined {
+  try {
+    return origin ? new URL(origin).hostname.replace(/^www\./, "") : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 // Admin Lambda: invoked directly with `aws lambda invoke`.
