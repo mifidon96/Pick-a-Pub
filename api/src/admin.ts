@@ -5,6 +5,7 @@ import areas from "../../web/lib/areas.json";
 import { TILE_MAX_AGE_DAYS } from "./tiles";
 import { pendingExists, previewUrl, publish, removePending } from "./photos";
 import { guessChannel, type FixtureInput } from "./fixtures";
+import { stats } from "./analytics";
 
 // Admin actions. On AWS these run through a separate Lambda that is not behind
 // API Gateway, so only someone with AWS credentials can call them.
@@ -20,6 +21,7 @@ export type AdminEvent =
   | { action: "reject_photo"; id: string }
   | { action: "apply_content"; entries: ContentEntry[] }
   | { action: "set_fixtures"; fixtures: FixtureInput[] }
+  | { action: "stats"; days?: number }
   | { action: "list_reports" }
   | { action: "hide_review"; id: number }
   | { action: "restore_review"; id: number }
@@ -199,6 +201,8 @@ export async function runAdmin(event: AdminEvent): Promise<unknown> {
     const old = await db().query("delete from fixtures where kickoff < now() - interval '1 day'");
     return { ok: true, saved, removed: old.rowCount };
   }
+
+  if (event.action === "stats") return stats(Math.min(Math.max(Number(event.days) || 7, 1), 90));
 
   // Moderation (scripts/moderate.sh).
   if (event.action === "list_reports") {

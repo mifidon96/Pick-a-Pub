@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = { title: "Offline", robots: { index: false } };
 
 // Shown by the service worker when there is no connection and the page was not saved.
 export default function OfflinePage() {

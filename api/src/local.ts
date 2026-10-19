@@ -70,6 +70,7 @@ createServer(async (req, res) => {
     query: Object.fromEntries(url.searchParams),
     body,
     userId: typeof devUser === "string" && devUser ? devUser : undefined,
+    client: { ip: req.socket.remoteAddress, ua: req.headers["user-agent"], host: "localhost" },
   });
   res.writeHead(out.status, { ...cors, "content-type": "application/json" }).end(JSON.stringify(out.body));
 }).listen(port, () => console.log(`API on http://localhost:${port}`));

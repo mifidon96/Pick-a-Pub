@@ -10,6 +10,7 @@ import PubPhotos from "@/components/PubPhotos";
 import ReportButton from "@/components/ReportButton";
 import { VerdictPanel } from "@/components/Verdict";
 import { lastList } from "@/lib/lastList";
+import { usePageInfo } from "@/lib/pageInfo";
 
 // Pub details: info, ratings and reviews. Reviewing happens on /pub/review/?id=.
 // The id is a query parameter so the whole site can be a static export.
@@ -37,6 +38,16 @@ function PubDetailView() {
       live = false;
     };
   }, [id, validId]);
+
+  // The page is shared by every pub, so name the tab and description once it loads.
+  usePageInfo(data
+    ? {
+        title: `${data.pub.name}: football rating`,
+        description: data.pub.stars !== null
+          ? `${data.pub.name} is rated ${data.pub.stars.toFixed(1)} out of 5 for watching football by ${data.pub.review_count} fan${data.pub.review_count === 1 ? "" : "s"}. View of the screen, sound, crowd and seats.`
+          : `Is ${data.pub.name} good for watching football? Ratings for the view of the screen, sound, crowd and seats.`,
+      }
+    : null);
 
   if (!validId) return <NotFound message="That pub link is not valid." />;
   if (error) return <NotFound message={error} />;

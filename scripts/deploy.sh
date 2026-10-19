@@ -152,6 +152,7 @@ step "Building the website"
   npm ci --no-audit --no-fund
   # Make sure no local dev settings (fake user, localhost API) end up in the live site.
   NEXT_PUBLIC_DEV_USER="" \
+  NEXT_PUBLIC_SITE_URL="$(tf_out site_url)" \
   NEXT_PUBLIC_API_URL="$(tf_out api_url)" \
   NEXT_PUBLIC_COGNITO_AUTHORITY="$(tf_out cognito_authority)" \
   NEXT_PUBLIC_COGNITO_CLIENT_ID="$(tf_out cognito_client_id)" \
@@ -160,6 +161,10 @@ step "Building the website"
 if grep -rqE "dev-user-[0-9]|localhost:4000" "$ROOT/web/out"; then
   fail "the build still contains local dev settings; check web/.env* files"
 fi
+
+step "Writing sitemap.xml and robots.txt"
+node "$ROOT/scripts/sitemap.mjs" "$(tf_out api_url)" "$(tf_out site_url)" "$ROOT/web/out" \
+  || echo "Could not write the sitemap; carrying on."
 
 step "Uploading the website"
 aws s3 sync "$ROOT/web/out" "s3://$(tf_out web_bucket)" --delete --only-show-errors

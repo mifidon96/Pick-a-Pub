@@ -302,3 +302,25 @@ create table if not exists fixtures (
   updated_at   timestamptz not null default now()
 );
 create index if not exists fixtures_kickoff_idx on fixtures (kickoff);
+
+-- ---------------------------------------------------------------------------
+-- Analytics without cookies. One row per page view: the page, where the visitor
+-- came from (site name only) and an anonymous visitor code. The code is a hash
+-- of IP address + browser + a random salt that changes every day and is then
+-- deleted, so the same person cannot be followed from one day to the next and
+-- the IP address is never stored. Rows are deleted after 90 days.
+-- ---------------------------------------------------------------------------
+create table if not exists page_views (
+  id        bigint generated always as identity primary key,
+  at        timestamptz not null default now(),
+  path      text not null check (char_length(path) <= 200),
+  referrer  text check (char_length(referrer) <= 100),
+  app       boolean not null default false,   -- opened from the installed app
+  visitor   text not null                      -- daily anonymous code, see above
+);
+create index if not exists page_views_at_idx on page_views (at);
+
+create table if not exists analytics_salt (
+  day   date primary key,
+  salt  text not null
+);
