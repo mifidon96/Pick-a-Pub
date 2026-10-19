@@ -9,9 +9,12 @@ export default function Header() {
   return (
     <header className="bg-pitch text-white">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-        <Link href="/" className="text-lg font-bold tracking-tight">
-          Pick-a-Pub <span className="font-normal text-amber">match day</span>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/" className="text-lg font-bold tracking-tight">
+            Pick-a-Pub <span className="hidden font-normal text-amber sm:inline">match day</span>
+          </Link>
+          <Link href="/match/" className="rounded px-2 py-1 text-sm hover:bg-pitch-dark">Matches</Link>
+        </div>
         {devMode ? (
           <Link href="/account/" className="rounded bg-pitch-dark px-2 py-1 text-xs">dev user</Link>
         ) : ready && available ? (

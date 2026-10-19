@@ -1,5 +1,6 @@
 import { db } from "./db";
 import teams from "../../web/lib/teams.json";
+import { CHANNEL_NAMES, COMPETITION_NAMES, type Channel } from "./fixtures";
 import { deletePhotoObjects, editorialPhotoUrl, photoKeyUrl, photosEnabled, presignUpload, publicPhotoUrl } from "./photos";
 
 export type Req = {
@@ -97,6 +98,17 @@ async function listPubs(req: Req): Promise<Res> {
   const fans = req.query.fans ?? "";
   if (fans && !TEAM_IDS.has(fans)) throw bad("unknown team");
 
+  const pubs = await nearbyPubs({
+    lat, lng, radius,
+    where: `${vibe}\n        ${filters}\n        ${fans ? `and ${FAN_TEAM} = $4` : ""}`,
+    order,
+    params: fans ? [fans] : [],
+  });
+  return { status: 200, body: { pubs } };
+}
+
+// Pubs within radius of a point, with scores and a cover photo. Extra params start at $4.
+async function nearbyPubs(o: { lat: number; lng: number; radius: number; where: string; order: string; params: unknown[]; extraCols?: string }) {
   const { rows } = await db().query(
     `select p.id, p.name, p.address, p.postcode, p.lat, p.lng,
             round(earth_distance(ll_to_earth($1, $2), ll_to_earth(p.lat, p.lng)))::int as distance_m,
@@ -106,27 +118,72 @@ async function listPubs(req: Req): Promise<Res> {
               order by ph.created_at desc limit 1) as upload_photo,
             p.info->'photo'->>'url' as wiki_photo,
             p.info->'photo'->>'key' as wiki_copy,
+            ${o.extraCols ? `${o.extraCols},` : ""}
             ${SCORE_COLS}
        from pubs p
        left join pub_scores s on s.pub_id = p.id
        left join pub_editorial e on e.pub_id = p.id
       where earth_box(ll_to_earth($1, $2), $3) @> ll_to_earth(p.lat, p.lng)
         and earth_distance(ll_to_earth($1, $2), ll_to_earth(p.lat, p.lng)) <= $3
-        ${vibe}
-        ${filters}
-        ${fans ? `and ${FAN_TEAM} = $4` : ""}
-      order by ${order}
+        ${o.where}
+      order by ${o.order}
       limit 50`,
-    fans ? [lat, lng, radius, fans] : [lat, lng, radius],
+    [o.lat, o.lng, o.radius, ...o.params],
   );
   // Cover photo: ours first, then an approved upload, then Wikimedia.
-  const pubs = rows.map(({ editorial_photo, upload_photo, wiki_photo, wiki_copy, ...p }) => ({
+  return rows.map(({ editorial_photo, upload_photo, wiki_photo, wiki_copy, ...p }) => ({
     ...p,
     photo: editorial_photo ? editorialPhotoUrl(editorial_photo)
       : upload_photo ? publicPhotoUrl(upload_photo)
       : photoKeyUrl(wiki_copy) ?? wiki_photo ?? null,
   }));
-  return { status: 200, body: { pubs } };
+}
+
+// --- Where's it showing? ---------------------------------------------------
+
+const fixtureOut = (f: Record<string, unknown>) => ({
+  ...f,
+  competition_name: COMPETITION_NAMES[f.competition as string] ?? f.competition,
+  channel_name: CHANNEL_NAMES[f.channel as Channel] ?? CHANNEL_NAMES.unknown,
+});
+const FIXTURE_COLS = "id, competition, kickoff, status, home_name, away_name, home_team, away_team, channel";
+
+// GET /fixtures?days=7&team=arsenal  Upcoming matches (and ones that kicked off in the last 2 hours).
+async function listFixtures(req: Req): Promise<Res> {
+  const days = num(req.query.days, "days", 1, 14, 7);
+  const team = req.query.team ?? "";
+  if (team && !TEAM_IDS.has(team)) throw bad("unknown team");
+  const { rows } = await db().query(
+    `select ${FIXTURE_COLS} from fixtures
+      where kickoff > now() - interval '2 hours' and kickoff < now() + make_interval(days => $1)
+        and status not in ('FINISHED', 'POSTPONED', 'CANCELLED', 'SUSPENDED')
+        ${team ? "and (home_team = $2 or away_team = $2)" : ""}
+      order by kickoff, id limit 150`,
+    team ? [days, team] : [days],
+  );
+  return { status: 200, body: { fixtures: rows.map(fixtureOut) } };
+}
+
+// GET /fixtures/{id}/pubs?lat=&lng=&radius_m=  Pubs near a point for this match:
+// reviewers say it has the channel first, then unknown, then "no"; best rated first within each.
+async function fixturePubs(id: number, req: Req): Promise<Res> {
+  const lat = num(req.query.lat, "lat", -90, 90);
+  const lng = num(req.query.lng, "lng", -180, 180);
+  const radius = num(req.query.radius_m, "radius_m", 100, 10000, 3000);
+  const f = await db().query(`select ${FIXTURE_COLS} from fixtures where id = $1`, [id]);
+  if (!f.rows[0]) throw new HttpError(404, "Match not found");
+  const fixture = f.rows[0];
+  const col = { sky: "s.shows_sky", tnt: "s.shows_tnt", amazon: "s.shows_amazon" }[fixture.channel as string];
+  const has = col ?? "null::boolean";
+  const pubs = await nearbyPubs({
+    lat, lng, radius,
+    where: "",
+    extraCols: `${has} as has_channel`,
+    order: `case when ${has} then 0 when ${has} is null then 1 else 2 end,
+            s.stars desc nulls last, s.review_count desc nulls last, distance_m`,
+    params: [],
+  });
+  return { status: 200, body: { fixture: fixtureOut(fixture), pubs } };
 }
 
 // GET /pubs/{id}
@@ -352,6 +409,9 @@ export async function handle(req: Req): Promise<Res> {
   try {
     const path = req.path.replace(/\/+$/, "") || "/";
     if (req.method === "GET" && path === "/pubs") return await listPubs(req);
+    if (path === "/fixtures" && req.method === "GET") return await listFixtures(req);
+    const fx = /^\/fixtures\/(\d{1,9})\/pubs$/.exec(path);
+    if (fx && req.method === "GET") return await fixturePubs(Number(fx[1]), req);
     if (path === "/me" && req.method === "GET") return await exportMe(req);
     if (path === "/me" && req.method === "DELETE") return await deleteMe(req);
 

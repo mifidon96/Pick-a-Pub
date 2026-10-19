@@ -64,6 +64,25 @@ Each pub page shows details from OpenStreetMap where listed: opening hours,
 website, phone, food, beer garden, real ale, wheelchair access, plus a
 directions link. Reviews are on a separate page, `/pub/review/?id=`.
 
+## Where's it showing?
+
+`/match/` lists the next 7 days of Premier League, Championship and Champions
+League matches (plus the Euros and World Cup), filtered by your team. Pick one to
+see nearby pubs: those reviewers say have the right channel come first, then best
+for football.
+
+- Fixtures come from football-data.org (free tier). The importer Lambda fetches
+  them every 6 hours (EventBridge) and after each deploy. Needs a free key from
+  https://www.football-data.org/client/register as the `FOOTBALL_DATA_API_KEY`
+  GitHub secret (or `TF_VAR_football_data_api_key` for a laptop deploy). Without
+  it the page just shows no matches.
+- football-data.org has no TV data, so the channel is a best guess from the UK
+  rights deals (`guessChannel` in `api/src/fixtures.ts`): Saturday 3pm is the
+  blackout, Premier League Saturday 12:30 is TNT and the rest Sky, Championship
+  Sky, Champions League TNT, tournaments BBC or ITV. The site always links to the
+  TV listings. Update the function when the rights change (2027 for the
+  Champions League).
+
 ## Map
 
 The list has a List / Map switch (`?view=map`). Pins show the stars; tap one for

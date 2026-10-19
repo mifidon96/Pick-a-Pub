@@ -69,6 +69,13 @@ STATE_BUCKET="pickapub-tfstate-$ACCOUNT"
 aws s3api head-bucket --bucket "$STATE_BUCKET" 2>/dev/null \
   || fail "no state bucket $STATE_BUCKET in this account. Run ./scripts/bootstrap.sh once first."
 
+# The football-data.org key: GitHub Actions passes TF_VAR_football_data_api_key.
+# On a laptop, export it first (export TF_VAR_football_data_api_key=...), or the
+# match listings are switched off for this deploy.
+if [[ -z "${TF_VAR_football_data_api_key:-}" ]]; then
+  printf '\033[1;33mNote: TF_VAR_football_data_api_key is not set, so match listings will be off.\033[0m\n'
+fi
+
 # Alarm emails: GitHub Actions passes TF_VAR_alert_email. On a laptop, reuse the
 # address given to bootstrap.sh.
 if [[ -z "${TF_VAR_alert_email:-}" && -f "$INFRA/bootstrap/terraform.tfvars" ]]; then
@@ -118,6 +125,13 @@ step "Copying Wikimedia photos into our bucket"
 tmp="$(mktemp)"
 aws lambda invoke --function-name "$(tf_out importer_function)" --cli-binary-format raw-in-base64-out \
   --payload '{"copy_photos":true}' --cli-read-timeout 150 "$tmp" >/dev/null && cat "$tmp" && echo
+rm -f "$tmp"
+
+step "Refreshing upcoming matches (needs TF_VAR_football_data_api_key)"
+tmp="$(mktemp)"
+aws lambda invoke --function-name "$(tf_out importer_function)" --cli-binary-format raw-in-base64-out \
+  --payload '{"fixtures":true}' --cli-read-timeout 60 "$tmp" >/dev/null && cat "$tmp" && echo \
+  || echo "Could not refresh matches; the 6-hourly schedule will try again."
 rm -f "$tmp"
 
 if compgen -G "$ROOT/content/photos/*" >/dev/null; then

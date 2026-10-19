@@ -69,3 +69,10 @@ variable "use_ses_email" {
   type        = bool
   default     = false
 }
+
+variable "football_data_api_key" {
+  description = "Free key from football-data.org for upcoming matches. Kept out of git: set TF_VAR_football_data_api_key. Empty = no match listings."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

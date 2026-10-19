@@ -20,6 +20,7 @@ jobs:
       id-token: write
     env:
       TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
+      TF_VAR_football_data_api_key: ${{ secrets.FOOTBALL_DATA_API_KEY }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5

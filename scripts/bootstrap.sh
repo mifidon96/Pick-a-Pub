@@ -41,6 +41,9 @@ step "Setting up GitHub"
 if command -v gh >/dev/null && gh auth status >/dev/null 2>&1; then
   gh variable set AWS_ACCOUNT_ID --repo "$REPO" --body "$ACCOUNT"
   gh secret set ALERT_EMAIL --repo "$REPO" --body "$EMAIL"
+  echo "Match listings need a free key from https://www.football-data.org/client/register"
+  read -r -s -p "football-data.org API key (Enter to add it later): " fdkey; echo
+  if [[ -n "$fdkey" ]]; then gh secret set FOOTBALL_DATA_API_KEY --repo "$REPO" --body "$fdkey"; fi
   ME="$(gh api user --jq .id)"
   # dev deploys straight away. prod waits for you to press Approve.
   # Both only accept deploys from the main branch.
@@ -62,6 +65,7 @@ The GitHub CLI is not installed or not signed in, so do these by hand on
 https://github.com/$REPO/settings:
   1. Secrets and variables > Actions > Variables: AWS_ACCOUNT_ID = $ACCOUNT
   2. Secrets and variables > Actions > Secrets:   ALERT_EMAIL = $EMAIL
+     and FOOTBALL_DATA_API_KEY = <free key from football-data.org>
   3. Environments > New environment "dev"  (Deployment branches: main only)
   4. Environments > New environment "prod" (Required reviewers: you; Deployment branches: main only)
 EOF

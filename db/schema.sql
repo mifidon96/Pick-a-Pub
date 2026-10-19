@@ -283,3 +283,22 @@ create table if not exists pub_photos (
 create index if not exists pub_photos_pub_idx on pub_photos (pub_id, status, created_at);
 
 alter table pub_editorial add column if not exists photos jsonb not null default '[]'::jsonb;  -- filenames in content/photos/
+
+-- ---------------------------------------------------------------------------
+-- "Where's it showing?": upcoming matches from football-data.org, refreshed
+-- every 6 hours by the importer (api/src/fixtures.ts). channel is our best
+-- guess at the UK broadcaster; the site always says to check the listings.
+-- ---------------------------------------------------------------------------
+create table if not exists fixtures (
+  id           integer primary key,               -- football-data.org match id
+  competition  text not null,                     -- PL, ELC, CL, EC, WC
+  kickoff      timestamptz not null,
+  status       text not null,
+  home_name    text not null,
+  away_name    text not null,
+  home_team    text,                              -- web/lib/teams.json id, if known
+  away_team    text,
+  channel      text not null default 'unknown',
+  updated_at   timestamptz not null default now()
+);
+create index if not exists fixtures_kickoff_idx on fixtures (kickoff);
