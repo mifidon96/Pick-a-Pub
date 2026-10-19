@@ -17,7 +17,11 @@ export type AdminEvent =
   | { action: "list_pending_photos" }
   | { action: "approve_photo"; id: string }
   | { action: "reject_photo"; id: string }
-  | { action: "apply_content"; entries: ContentEntry[] };
+  | { action: "apply_content"; entries: ContentEntry[] }
+  | { action: "list_reports" }
+  | { action: "hide_review"; id: number }
+  | { action: "restore_review"; id: number }
+  | { action: "delete_review"; id: number };
 
 export type PubInput = {
   source: string;
@@ -169,6 +173,37 @@ export async function runAdmin(event: AdminEvent): Promise<unknown> {
     const status = event.action === "approve_photo" ? "approved" : "rejected";
     await db().query("update pub_photos set status = $2, reviewed_at = now() where id = $1", [event.id, status]);
     return { ok: true, id: event.id, status };
+  }
+
+  // Moderation (scripts/moderate.sh).
+  if (event.action === "list_reports") {
+    const { rows } = await db().query(
+      `select r.id, r.hidden, p.name as pub, u.display_name as author, r.comment, r.match_label, r.updated_at,
+              count(rr.*)::int as reports,
+              array_agg(rr.reason || coalesce(': ' || rr.note, '') order by rr.created_at) as reasons
+         from review_reports rr
+         join reviews r on r.id = rr.review_id
+         join pubs p on p.id = r.pub_id
+         join users u on u.id = r.user_id
+        where rr.resolved_at is null
+        group by r.id, p.name, u.display_name
+        order by count(rr.*) desc, max(rr.created_at)`,
+    );
+    return { reports: rows };
+  }
+
+  if (event.action === "hide_review" || event.action === "restore_review" || event.action === "delete_review") {
+    const id = Number(event.id);
+    if (!Number.isInteger(id)) throw new Error("id must be a review id");
+    const found = await db().query("select 1 from reviews where id = $1", [id]);
+    if (!found.rowCount) throw new Error("No review with that id");
+    if (event.action === "delete_review") {
+      await db().query("delete from reviews where id = $1", [id]); // reports go with it
+    } else {
+      await db().query("update reviews set hidden = $2 where id = $1", [id, event.action === "hide_review"]);
+      await db().query("update review_reports set resolved_at = now() where review_id = $1 and resolved_at is null", [id]);
+    }
+    return { ok: true, id, action: event.action };
   }
 
   throw new Error("Unknown action");

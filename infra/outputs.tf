@@ -1,5 +1,5 @@
 output "site_url" {
-  value = "https://${aws_cloudfront_distribution.web.domain_name}"
+  value = local.site_url
 }
 
 output "api_url" {

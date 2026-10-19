@@ -18,7 +18,8 @@ export function userManager(): UserManager | null {
     client_id: CLIENT_ID,
     redirect_uri: `${window.location.origin}/auth/callback/`,
     response_type: "code",
-    scope: "openid email",
+    // aws.cognito.signin.user.admin: lets "Delete my account" remove the sign-in itself.
+    scope: "openid email aws.cognito.signin.user.admin",
     userStore: new WebStorageStateStore({ store: window.localStorage }),
   });
   return mgr;
@@ -31,7 +32,26 @@ type Auth = {
   headers: Record<string, string>;
   signIn: () => void;
   signOut: () => void;
+  deleteSignIn: () => Promise<void>; // removes the Cognito account, then signs out
 };
+
+// Cognito's own API, called from the browser with the user's access token.
+async function cognitoDeleteUser(accessToken: string) {
+  const region = /cognito-idp\.([a-z0-9-]+)\.amazonaws\.com/.exec(AUTHORITY ?? "")?.[1];
+  if (!region) throw new Error("Sign-in is not set up");
+  const res = await fetch(`https://cognito-idp.${region}.amazonaws.com/`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-amz-json-1.1",
+      "x-amz-target": "AWSCognitoIdentityProviderService.DeleteUser",
+    },
+    body: JSON.stringify({ AccessToken: accessToken }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message ?? `Could not delete the sign-in (${res.status})`);
+  }
+}
 
 const Ctx = createContext<Auth | null>(null);
 
@@ -57,6 +77,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     userManager()?.removeUser().then(() => setToken(null));
   }, []);
 
+  const deleteSignIn = useCallback(async () => {
+    if (DEV_USER) return; // nothing to delete locally
+    const m = userManager();
+    const user = await m?.getUser();
+    if (!m || !user?.access_token) throw new Error("Sign in again, then try once more");
+    await cognitoDeleteUser(user.access_token);
+    await m.removeUser();
+    setToken(null);
+  }, []);
+
   const value = useMemo<Auth>(() => {
     const headers: Record<string, string> = DEV_USER
       ? { "x-dev-user": DEV_USER }
@@ -70,8 +100,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       headers,
       signIn,
       signOut,
+      deleteSignIn,
     };
-  }, [ready, token, signIn, signOut]);
+  }, [ready, token, signIn, signOut, deleteSignIn]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

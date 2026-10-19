@@ -35,7 +35,7 @@ createServer(async (req, res) => {
   const cors = {
     "access-control-allow-origin": "*",
     "access-control-allow-headers": "content-type, authorization, x-dev-user",
-    "access-control-allow-methods": "GET, PUT, POST, OPTIONS",
+    "access-control-allow-methods": "GET, PUT, POST, DELETE, OPTIONS",
   };
   if (req.method === "OPTIONS") {
     res.writeHead(204, cors).end();

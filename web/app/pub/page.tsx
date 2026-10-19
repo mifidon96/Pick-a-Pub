@@ -7,6 +7,7 @@ import { getPub, SCORE_KEYS, SCORE_LABELS, type PubDetail, type PubInfo, type Re
 import { FactChips, RatingBadge, ScoreBars } from "@/components/Scores";
 import ShareButton from "@/components/ShareButton";
 import PubPhotos from "@/components/PubPhotos";
+import ReportButton from "@/components/ReportButton";
 import { VerdictPanel } from "@/components/Verdict";
 import { lastList } from "@/lib/lastList";
 
@@ -114,6 +115,7 @@ function PubDetailView() {
               {SCORE_KEYS.map((k) => `${SCORE_LABELS[k].label} ${r[k]}`).join(" · ")}
               {r.food !== null && ` · Food ${r.food}`}
             </p>
+            <ReportButton reviewId={r.id} />
           </article>
         ))}
       </section>

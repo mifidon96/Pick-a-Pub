@@ -51,3 +51,21 @@ variable "extra_origins" {
   type        = list(string)
   default     = []
 }
+
+variable "domain_name" {
+  description = "Custom domain for the site, e.g. pickapub.co.uk (prod) or dev.pickapub.co.uk. Empty = the cloudfront.net address."
+  type        = string
+  default     = ""
+}
+
+variable "hosted_zone_name" {
+  description = "Route 53 hosted zone that holds domain_name. Empty = domain_name itself (right for prod; dev uses the prod zone)."
+  type        = string
+  default     = ""
+}
+
+variable "use_ses_email" {
+  description = "Send sign-up and password emails through SES from no-reply@domain_name. Needs domain_name and SES production access."
+  type        = bool
+  default     = false
+}

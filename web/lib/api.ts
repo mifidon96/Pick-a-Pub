@@ -166,3 +166,30 @@ export async function uploadPhoto(pubId: number, image: Blob, headers: HeadersIn
   const res = await fetch(form.url, { method: "POST", body });
   if (!res.ok) throw new Error(res.status === 400 ? "That photo is too large" : `Upload failed (${res.status})`);
 }
+
+// Report a review (signed in). Three reports hide it until it has been checked.
+export const REPORT_REASONS = {
+  spam: "Spam or advertising",
+  offensive: "Rude or offensive",
+  fake: "Fake, or not about this pub",
+  personal: "Shares someone's personal details",
+  other: "Something else",
+} as const;
+export type ReportReason = keyof typeof REPORT_REASONS;
+
+export function reportReview(id: number, reason: ReportReason, note: string, headers: HeadersInit) {
+  return request<{ ok: true }>(`/reviews/${id}/report`, {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json" },
+    body: JSON.stringify({ reason, note }),
+  });
+}
+
+// Account: everything we hold about you, and deleting it.
+export function exportMyData(headers: HeadersInit) {
+  return request<Record<string, unknown>>(`/me`, { headers });
+}
+
+export function deleteMyData(headers: HeadersInit) {
+  return request<{ ok: true; deleted: boolean; photos: number }>(`/me`, { method: "DELETE", headers });
+}

@@ -40,6 +40,71 @@ resource "aws_cloudfront_function" "index_rewrite" {
   JS
 }
 
+# Security headers on every response.
+# The Content-Security-Policy lists every site the browser may talk to. Adding a
+# new outside service (an API, map tiles, images) means adding it here too.
+locals {
+  csp_connect = [
+    "'self'",
+    "https://*.execute-api.${var.region}.amazonaws.com",                         # our API
+    "https://cognito-idp.${var.region}.amazonaws.com",                           # sign-in
+    "https://${var.cognito_domain_prefix}.auth.${var.region}.amazoncognito.com", # sign-in tokens
+    "https://${aws_s3_bucket.photos.bucket_regional_domain_name}",               # photo uploads
+    "https://api.postcodes.io",                                                  # place search
+  ]
+  csp_img = ["'self'", "data:", "blob:", "https://upload.wikimedia.org"]
+  csp = join("; ", [
+    "default-src 'self'",
+    # Next.js puts small inline scripts in every page of a static export.
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src ${join(" ", local.csp_img)}",
+    "connect-src ${join(" ", local.csp_connect)}",
+    "frame-src https://${var.cognito_domain_prefix}.auth.${var.region}.amazoncognito.com",
+    "font-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "upgrade-insecure-requests",
+  ])
+}
+
+resource "aws_cloudfront_response_headers_policy" "security" {
+  name = "${local.name}-security"
+
+  security_headers_config {
+    content_security_policy {
+      content_security_policy = local.csp
+      override                = true
+    }
+    strict_transport_security {
+      access_control_max_age_sec = 31536000
+      include_subdomains         = true
+      override                   = true
+    }
+    content_type_options {
+      override = true
+    }
+    frame_options {
+      frame_option = "DENY"
+      override     = true
+    }
+    referrer_policy {
+      referrer_policy = "strict-origin-when-cross-origin"
+      override        = true
+    }
+  }
+
+  custom_headers_config {
+    items {
+      header   = "Permissions-Policy"
+      value    = "camera=(), microphone=(), payment=(), geolocation=(self)"
+      override = true
+    }
+  }
+}
+
 data "aws_cloudfront_cache_policy" "optimized" {
   name = "Managed-CachingOptimized"
 }
@@ -64,22 +129,24 @@ resource "aws_cloudfront_distribution" "web" {
   }
 
   ordered_cache_behavior {
-    path_pattern           = "public/*"
-    target_origin_id       = "photos"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
-    compress               = true
-    cache_policy_id        = data.aws_cloudfront_cache_policy.optimized.id
+    path_pattern               = "public/*"
+    target_origin_id           = "photos"
+    viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
+    compress                   = true
+    cache_policy_id            = data.aws_cloudfront_cache_policy.optimized.id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
   }
 
   default_cache_behavior {
-    target_origin_id       = "s3"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
-    compress               = true
-    cache_policy_id        = data.aws_cloudfront_cache_policy.optimized.id
+    target_origin_id           = "s3"
+    viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["GET", "HEAD"]
+    cached_methods             = ["GET", "HEAD"]
+    compress                   = true
+    cache_policy_id            = data.aws_cloudfront_cache_policy.optimized.id
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.security.id
 
     function_association {
       event_type   = "viewer-request"
@@ -100,8 +167,13 @@ resource "aws_cloudfront_distribution" "web" {
     }
   }
 
+  aliases = local.custom_domain ? [var.domain_name] : []
+
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = !local.custom_domain
+    acm_certificate_arn            = local.custom_domain ? aws_acm_certificate_validation.site[0].certificate_arn : null
+    ssl_support_method             = local.custom_domain ? "sni-only" : null
+    minimum_protocol_version       = local.custom_domain ? "TLSv1.2_2021" : null
   }
 }
 
