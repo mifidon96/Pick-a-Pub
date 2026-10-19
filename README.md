@@ -83,6 +83,23 @@ for football.
   TV listings. Update the function when the rights change (2027 for the
   Champions League).
 
+## Installable app (PWA)
+
+The site can be added to a phone's home screen and opens like an app
+(`web/public/manifest.json`, icons in `web/public/icons/`). Phones get a one-off
+"Add to home screen" hint (`components/AppInstall.tsx`); dismissing it is remembered.
+
+The service worker (`web/public/sw.js`, live site only, not `next dev`):
+- pages: network first, so a deploy is never hidden behind an old copy; the
+  cache is only used offline, with `/offline/` for pages not seen before
+- `/_next/static/`: cached (filenames change every build)
+- photos and icons: cached, refreshed in the background
+- API, sign-in and other sites: never touched
+
+If it ever misbehaves: copy `web/public/sw-kill.js` over `sw.js` and deploy.
+Every browser drops the caches and the worker, and the site acts as a plain
+website again. After changing caching rules, bump `VERSION` in `sw.js`.
+
 ## Map
 
 The list has a List / Map switch (`?view=map`). Pins show the stars; tap one for
