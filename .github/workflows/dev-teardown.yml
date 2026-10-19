@@ -25,14 +25,14 @@ jobs:
       TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
       TF_VAR_football_data_api_key: ${{ secrets.FOOTBALL_DATA_API_KEY }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: 22 }
       - name: Build Lambda bundles (Terraform needs the zips to plan)
         run: cd api && npm ci --no-audit --no-fund && npm run build
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with: { terraform_version: "~1.13.0", terraform_wrapper: false }
-      - uses: aws-actions/configure-aws-credentials@v5
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/pickapub-github-deploy-dev
           aws-region: eu-west-2
