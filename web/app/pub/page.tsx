@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { getPub, SCORE_KEYS, SCORE_LABELS, type PubDetail, type PubInfo, type Review } from "@/lib/api";
+import { getPub, SCORE_KEYS, SCORE_LABELS, teamName, type PubDetail, type PubInfo, type Review } from "@/lib/api";
 import { FactChips, RatingBadge, ScoreBars } from "@/components/Scores";
 import ShareButton from "@/components/ShareButton";
 import PubPhotos from "@/components/PubPhotos";
@@ -112,8 +112,9 @@ function PubDetailView() {
             {r.match_label && <p className="mt-1 text-xs text-muted">Watched: {r.match_label}</p>}
             {r.comment && <p className="mt-2">{r.comment}</p>}
             <p className="mt-2 text-xs text-muted">
-              {SCORE_KEYS.map((k) => `${SCORE_LABELS[k].label} ${r[k]}`).join(" · ")}
+              {SCORE_KEYS.filter((k) => r[k] !== null).map((k) => `${SCORE_LABELS[k].label} ${r[k]}`).join(" · ")}
               {r.food !== null && ` · Food ${r.food}`}
+              {r.fan_team && ` · Fans here: ${teamName(r.fan_team)}`}
             </p>
             <ReportButton reviewId={r.id} />
           </article>
@@ -138,6 +139,8 @@ const INFO_ROWS: [keyof PubInfo, string][] = [
   ["dog", "Dogs welcome"],
   ["wheelchair", "Wheelchair access"],
   ["shows_sport", "Sport on TV"],
+  ["fans", "Whose fans"],
+  ["away_fans", "Away fans welcome"],
   ["operator", "Run by"],
   ["notes", "Notes"],
 ];
@@ -152,6 +155,7 @@ function InfoCard({ pub }: { pub: PubDetail }) {
     if (v === undefined || v === "") continue;
     if (typeof v === "boolean") rows.push([label, v ? "Yes" : "No"]);
     else if (key === "opening_hours") rows.push([label, <span key={key} className="whitespace-pre-line">{formatHours(v)}</span>]);
+    else if (key === "fans") rows.push([label, teamName(v) ?? v]);
     else if (key === "wheelchair") rows.push([label, ({ yes: "Yes", limited: "Limited", no: "No" } as Record<string, string>)[v] ?? v]);
     else rows.push([label, v]);
   }

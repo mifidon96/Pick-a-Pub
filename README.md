@@ -20,6 +20,10 @@ football fans say matters (`scripts/survey_weights.py`, 30 responses so far):
 
 Crowd and bar service were not asked directly in the survey, so they are estimates.
 
+**Quick review**: only view of a screen, screens and crowd are required (three
+taps). The rest is behind "Add more detail". A category nobody has scored for a
+pub counts as the area average, so quick reviews still give fair stars.
+
 How a pub's stars are worked out (`pub_scores` view in `db/schema.sql`):
 1. Newer reviews count more: a review's weight halves every 365 days.
 2. Each category is smoothed towards the average of all pubs, as if every pub had 3 extra average reviews. One glowing review cannot top the chart.
@@ -31,6 +35,12 @@ Not in the stars: **vibe** (calm to lively, a filter instead because people want
 opposite things), **food**, and yes/no facts (Sky, TNT, Amazon, bookable, outdoor
 screen, away fans, family friendly, step-free).
 
+**Home and away fans**: reviewers can say whose fans mostly watch at a pub
+(`web/lib/teams.json`: every Premier League and EFL club, the big Scottish clubs and
+the home nations). If at least half of those who answered agree, the pub shows
+"<Team> fans" and turns up under the "Fans' pub for" filter. `content/pubs.yaml`
+can set `fans:` and `away_fans:` directly, which wins over reviewers.
+
 Tuning: weights live in the `rating_weights` table and the knobs in
 `rating_settings`, so both can change without a code deploy. Tests:
 `db/tests/rating_test.sql`.
@@ -38,8 +48,9 @@ Tuning: weights live in the `rating_weights` table and the knobs in
 To update the weights after more survey responses (export without the email column):
 
 ```bash
-python3 scripts/survey_weights.py responses.csv > weights.sql
-# then run weights.sql against the database
+python3 scripts/survey_weights.py responses.csv
+# copy the weights into the rating_weights insert in db/schema.sql and merge;
+# every deploy applies them
 ```
 
 ## Areas

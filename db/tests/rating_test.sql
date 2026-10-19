@@ -13,7 +13,10 @@ insert into pubs (source, source_id, name, lat, lng) values
   ('test', 'b', 'Twenty good reviews', 51.44, -0.15),
   ('test', 'c', 'Cannot see the screen', 51.44, -0.15),
   ('test', 'd', 'Old reviews only', 51.44, -0.15),
-  ('test', 'e', 'No reviews', 51.44, -0.15);
+  ('test', 'e', 'No reviews', 51.44, -0.15),
+  ('test', 'f', 'Quick reviews only', 51.44, -0.15),
+  ('test', 'g', 'Arsenal pub', 51.44, -0.15),
+  ('test', 'h', 'Hidden review', 51.44, -0.15);
 
 create temp table ids as select source_id as k, id from pubs where source = 'test';
 
@@ -31,15 +34,33 @@ select i.id, 'u' || g, s.sl, s.cr, s.sc, s.se, s.co, s.sv, s.dp, 3, now() - make
 from spec s join ids i on i.k = s.k
 cross join lateral generate_series(1, s.n) g;
 
+-- F: two quick reviews, top marks on the three required categories only.
+insert into reviews (pub_id, user_id, sightlines, screens, crowd, updated_at)
+select (select id from ids where k = 'f'), 'u' || g, 5, 5, 5, now() from generate_series(30, 31) g;
+
+-- G: fans. Two say Arsenal, one Chelsea, one did not say.
+insert into reviews (pub_id, user_id, sightlines, screens, crowd, fan_team)
+select (select id from ids where k = 'g'), 'u' || g, 4, 4, 4,
+       case g when 32 then 'arsenal' when 33 then 'arsenal' when 34 then 'chelsea' end
+from generate_series(32, 35) g;
+
+-- H: one normal review and one hidden 1-star review.
+insert into reviews (pub_id, user_id, sightlines, screens, crowd, hidden)
+values ((select id from ids where k = 'h'), 'u36', 4, 4, 4, false),
+       ((select id from ids where k = 'h'), 'u37', 1, 1, 1, true);
+
 do $$
 declare
-  a record; b record; c record; d record; e_count int;
+  a record; b record; c record; d record; e_count int; f record; g record; h record;
 begin
   select * into a from pub_scores where pub_id = (select id from ids where k = 'a');
   select * into b from pub_scores where pub_id = (select id from ids where k = 'b');
   select * into c from pub_scores where pub_id = (select id from ids where k = 'c');
   select * into d from pub_scores where pub_id = (select id from ids where k = 'd');
   select count(*) into e_count from pub_scores where pub_id = (select id from ids where k = 'e');
+  select * into f from pub_scores where pub_id = (select id from ids where k = 'f');
+  select * into g from pub_scores where pub_id = (select id from ids where k = 'g');
+  select * into h from pub_scores where pub_id = (select id from ids where k = 'h');
 
   -- 1. One perfect review gets stars straight away, but its score is pulled well below 5.
   assert a.stars is not null, 'A should have stars from its first review';
@@ -60,6 +81,21 @@ begin
   -- 5. A pub with no reviews is simply absent (the API shows "No reviews yet").
   assert e_count = 0, 'E should have no row';
 
+  -- 6. Quick reviews get stars. Blank categories count as the area average, so
+  --    two all-5 quick reviews score below two full all-5 reviews would.
+  assert f.stars is not null, 'F should have stars from quick reviews';
+  assert f.seating is null, 'F seating should be blank, not zero';
+  assert f.score < 4.5 and f.score > 3, format('F score should sit between the area average and 5, got %s', f.score);
+
+  -- 7. Fans: the team at least half of the answers name.
+  assert g.fan_team = 'arsenal', format('G should be an Arsenal pub, got %s', g.fan_team);
+  assert a.fan_team is null, 'A has no fan team';
+
+  -- 8. Hidden (reported) reviews are left out entirely.
+  assert h.review_count = 1, format('H should count 1 review, got %s', h.review_count);
+  assert h.sightlines = 4, format('H sightlines should ignore the hidden review, got %s', h.sightlines);
+
+  raise notice 'PASS  F score % stars % (quick reviews)', f.score, f.stars;
   raise notice 'PASS  A score % stars %', a.score, a.stars;
   raise notice 'PASS  B score % stars %', b.score, b.stars;
   raise notice 'PASS  C score % stars % (sightlines %)', c.score, c.stars, c.sightlines;

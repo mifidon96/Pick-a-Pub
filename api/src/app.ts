@@ -1,4 +1,5 @@
 import { db } from "./db";
+import teams from "../../web/lib/teams.json";
 import { deletePhotoObjects, editorialPhotoUrl, photoKeyUrl, photosEnabled, presignUpload, publicPhotoUrl } from "./photos";
 
 export type Req = {
@@ -12,6 +13,9 @@ export type Res = { status: number; body: unknown };
 
 // Scored categories that feed the star rating (see db/schema.sql, pub_scores).
 const SCORES = ["sightlines", "crowd", "screens", "seating", "commentary", "service_speed", "drink_prices"] as const;
+// A quick review needs only these. The others can be left blank.
+const REQUIRED = new Set<string>(["sightlines", "screens", "crowd"]);
+const TEAM_IDS = new Set(teams.map((t) => t.id));
 const FACTS = [
   "shows_sky", "shows_tnt", "shows_amazon", "bookable",
   "outdoor_screen", "away_friendly", "family_friendly", "step_free",
@@ -48,9 +52,13 @@ function text(v: unknown, name: string, max: number): string | null {
   return t || null;
 }
 
+// Our own details (content/pubs.yaml) win over what reviewers say for fans.
+const FAN_TEAM = `coalesce(e.about->>'fans', s.fan_team)`;
+const AWAY_OK = `coalesce((e.about->>'away_fans')::boolean, s.away_friendly)`;
 const SCORE_COLS = `s.review_count, s.stars, s.score, ${SCORES.map((k) => `s.${k}`).join(", ")}, s.food, s.vibe,
   s.shows_sky, s.shows_tnt, s.shows_amazon, s.bookable, s.outdoor_screen,
-  s.away_friendly, s.family_friendly, s.step_free, s.dog_friendly, s.low_no_alcohol, s.last_reviewed_at`;
+  ${AWAY_OK} as away_friendly, ${FAN_TEAM} as fan_team,
+  s.family_friendly, s.step_free, s.dog_friendly, s.low_no_alcohol, s.last_reviewed_at`;
 
 // Things a visitor can filter on. Each combines customer reviews (majority yes)
 // with pub details from OpenStreetMap and content/pubs.yaml.
@@ -60,11 +68,12 @@ const FILTERS: Record<string, string> = {
   dog_friendly: `(${INFO}->>'dog' = 'true' or s.dog_friendly)`,
   big_screens: `(s.screens >= 4)`,
   low_no_alcohol: `(${INFO}->>'low_no_alcohol' = 'true' or s.low_no_alcohol)`,
+  away_friendly: `(${AWAY_OK})`,
 };
 // Sort by any scored category (best first), as well as stars or distance.
 const SORTABLE = new Set<string>([...SCORES, "food"]);
 
-// GET /pubs?lat=&lng=&radius_m=&sort=stars|distance|<category>&vibe=calm|lively&has=beer_garden,dog_friendly
+// GET /pubs?lat=&lng=&radius_m=&sort=stars|distance|<category>&vibe=calm|lively&has=beer_garden,dog_friendly&fans=<team>
 async function listPubs(req: Req): Promise<Res> {
   const lat = num(req.query.lat, "lat", -90, 90);
   const lng = num(req.query.lng, "lng", -180, 180);
@@ -85,6 +94,8 @@ async function listPubs(req: Req): Promise<Res> {
     req.query.vibe === "calm" ? "and s.vibe <= 2.5" :
     req.query.vibe === "lively" ? "and s.vibe >= 3.5" :
     req.query.vibe ? (() => { throw bad("vibe must be calm or lively"); })() : "";
+  const fans = req.query.fans ?? "";
+  if (fans && !TEAM_IDS.has(fans)) throw bad("unknown team");
 
   const { rows } = await db().query(
     `select p.id, p.name, p.address, p.postcode, p.lat, p.lng,
@@ -103,9 +114,10 @@ async function listPubs(req: Req): Promise<Res> {
         and earth_distance(ll_to_earth($1, $2), ll_to_earth(p.lat, p.lng)) <= $3
         ${vibe}
         ${filters}
+        ${fans ? `and ${FAN_TEAM} = $4` : ""}
       order by ${order}
       limit 50`,
-    [lat, lng, radius],
+    fans ? [lat, lng, radius, fans] : [lat, lng, radius],
   );
   // Cover photo: ours first, then an approved upload, then Wikimedia.
   const pubs = rows.map(({ editorial_photo, upload_photo, wiki_photo, wiki_copy, ...p }) => ({
@@ -154,7 +166,7 @@ async function getPub(id: number): Promise<Res> {
   const reviews = await db().query(
     `select r.id, u.display_name, ${SCORES.map((k) => `r.${k}`).join(", ")}, r.food, r.vibe,
             ${FACTS.map((f) => `r.${f}`).join(", ")},
-            r.match_label, r.comment, r.updated_at
+            r.fan_team, r.match_label, r.comment, r.updated_at
        from reviews r join users u on u.id = r.user_id
       where r.pub_id = $1 and not r.hidden
       order by r.updated_at desc
@@ -190,12 +202,14 @@ async function getMyReview(id: number, req: Req): Promise<Res> {
   const { rows } = await db().query(
     `select r.id, u.display_name, ${SCORES.map((k) => `r.${k}`).join(", ")}, r.food, r.vibe,
             ${FACTS.map((f) => `r.${f}`).join(", ")},
-            r.match_label, r.comment, r.updated_at
+            r.fan_team, r.match_label, r.comment, r.updated_at
        from reviews r join users u on u.id = r.user_id
       where r.pub_id = $1 and r.user_id = $2`,
     [id, req.userId],
   );
-  return { status: 200, body: { review: rows[0] ?? null } };
+  // The name they used before, so a first review of a new pub is pre-filled.
+  const user = await db().query("select display_name from users where id = $1", [req.userId]);
+  return { status: 200, body: { review: rows[0] ?? null, display_name: user.rows[0]?.display_name ?? null } };
 }
 
 // PUT /pubs/{id}/review  (signed in). Creates or replaces the caller's review.
@@ -206,9 +220,12 @@ async function putReview(id: number, req: Req): Promise<Res> {
 
   const displayName = text(b.display_name, "display_name", 30);
   if (!displayName || displayName.length < 2) throw bad("display_name must be 2 to 30 characters");
-  const scores = SCORES.map((k) => score(b[k], k));
-  const food = b.food === undefined || b.food === null ? null : score(b.food, "food");
-  const vibe = score(b.vibe, "vibe");
+  const optional = (k: string) => (b[k] === undefined || b[k] === null ? null : score(b[k], k));
+  const scores = SCORES.map((k) => (REQUIRED.has(k) ? score(b[k], k) : optional(k)));
+  const food = optional("food");
+  const vibe = optional("vibe");
+  const fanTeam = b.fan_team === undefined || b.fan_team === null || b.fan_team === "" ? null : String(b.fan_team);
+  if (fanTeam && !TEAM_IDS.has(fanTeam)) throw bad("fan_team is not a team we know");
   const facts = FACTS.map((k) => {
     const v = b[k];
     if (v === undefined || v === null) return null;
@@ -230,8 +247,8 @@ async function putReview(id: number, req: Req): Promise<Res> {
       [req.userId, displayName],
     );
 
-    const cols = [...SCORES, "food", "vibe", ...FACTS, "match_label", "comment"];
-    const vals = [...scores, food, vibe, ...facts, matchLabel, comment];
+    const cols = [...SCORES, "food", "vibe", ...FACTS, "fan_team", "match_label", "comment"];
+    const vals = [...scores, food, vibe, ...facts, fanTeam, matchLabel, comment];
     const placeholders = vals.map((_, i) => `$${i + 3}`).join(", ");
     const updates = cols.map((c) => `${c} = excluded.${c}`).join(", ");
     await client.query(

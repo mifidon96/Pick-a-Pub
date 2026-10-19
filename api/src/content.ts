@@ -1,4 +1,5 @@
 import { parse } from "yaml";
+import teams from "../../web/lib/teams.json";
 
 // content/pubs.yaml -> validated entries for the "apply_content" admin action.
 // Errors name the entry so they are easy to fix.
@@ -22,6 +23,8 @@ export type ContentEntry = {
 export const ABOUT_KEYS = [
   "opening_hours", "screens", "food", "drinks", "beer_garden", "booking",
   "real_ale", "dog", "low_no_alcohol", "wheelchair", "website", "phone", "operator", "notes",
+  "fans",      // team id from web/lib/teams.json, e.g. arsenal: whose fans watch here
+  "away_fans", // true or false: are away fans welcome
 ] as const;
 
 const str = (v: unknown, max: number, where: string): string | undefined => {
@@ -65,6 +68,10 @@ export function parseContent(yamlText: string): ContentEntry[] {
         }
       }
       if (typeof about.website === "string" && !/^https:\/\//.test(about.website)) throw new Error(`${where}: about.website must start with https://`);
+      if (about.fans !== undefined && !teams.some((t) => t.id === about.fans)) {
+        throw new Error(`${where}: about.fans must be a team id from web/lib/teams.json, e.g. arsenal or reading`);
+      }
+      if (about.away_fans !== undefined && typeof about.away_fans !== "boolean") throw new Error(`${where}: about.away_fans must be true or false`);
       entry.about = about;
     }
 

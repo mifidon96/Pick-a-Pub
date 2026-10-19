@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { areaStatus, ensureArea, FILTERS, listPubs, SCORE_KEYS, SCORE_LABELS, type Filter, type Pub, type Sort, type Vibe } from "@/lib/api";
+import { areaStatus, ensureArea, FILTERS, listPubs, SCORE_KEYS, SCORE_LABELS, TEAMS, type Filter, type Pub, type Sort, type Vibe } from "@/lib/api";
 import PlaceSearch from "@/components/PlaceSearch";
 import { FactChips, RatingBadge } from "@/components/Scores";
 import { VerdictChip } from "@/components/Verdict";
@@ -63,6 +63,10 @@ function PubSearch() {
   const [has, setHas] = useState<Filter[]>(() =>
     (params.get("has") ?? "").split(",").filter((f): f is Filter => f in FILTERS),
   );
+  const [fans, setFans] = useState(() => {
+    const v = params.get("fans") ?? "";
+    return TEAMS.some((t) => t.id === v) ? v : "";
+  });
   const [result, setResult] = useState<{ key: string; pubs?: Pub[]; error?: string }>({ key: "" });
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState("");
@@ -80,6 +84,7 @@ function PubSearch() {
     if (sort !== DEFAULTS.sort) q.set("sort", sort);
     if (vibe) q.set("vibe", vibe);
     if (has.length) q.set("has", has.join(","));
+    if (fans) q.set("fans", fans);
     const s = q.toString();
     return s ? `/?${s}` : "/";
   })();
@@ -121,25 +126,26 @@ function PubSearch() {
   const areaPending = !centre.areaId && (area.key !== centreKey || area.state === "importing");
   const areaFailed = !centre.areaId && area.key === centreKey && area.state === "failed" ? area.message : null;
 
-  const key = `${centre.lat},${centre.lng},${radius},${sort},${vibe},${has.join(",")}`;
+  const key = `${centre.lat},${centre.lng},${radius},${sort},${vibe},${has.join(",")},${fans}`;
   useEffect(() => {
     if (!areaReady) return;
     let live = true;
-    listPubs({ lat: centre.lat, lng: centre.lng, radiusM: radius, sort, vibe, has })
+    listPubs({ lat: centre.lat, lng: centre.lng, radiusM: radius, sort, vibe, has, fans })
       .then((r) => live && setResult({ key, pubs: r.pubs }))
       .catch((e: Error) => live && setResult({ key, error: e.message }));
     return () => {
       live = false;
     };
-  }, [centre, radius, sort, vibe, has, key, areaReady]);
+  }, [centre, radius, sort, vibe, has, fans, key, areaReady]);
   const loading = areaReady && result.key !== key;
 
-  const filtered = sort !== DEFAULTS.sort || radius !== DEFAULTS.radius || vibe !== DEFAULTS.vibe || has.length > 0;
+  const filtered = sort !== DEFAULTS.sort || radius !== DEFAULTS.radius || vibe !== DEFAULTS.vibe || has.length > 0 || fans !== "";
   function clearFilters() {
     setSort(DEFAULTS.sort);
     setRadius(DEFAULTS.radius);
     setVibe(DEFAULTS.vibe);
     setHas([]);
+    setFans("");
   }
   const toggle = (f: Filter) => setHas((h) => (h.includes(f) ? h.filter((x) => x !== f) : [...h, f]));
 
@@ -227,6 +233,16 @@ function PubSearch() {
           </label>
         </div>
 
+        <label className="block space-y-1">
+          <span className="block text-xs text-muted">Fans&apos; pub for</span>
+          <select value={fans} onChange={(e) => setFans(e.target.value)} className={select}>
+            <option value="">Any team</option>
+            {TEAMS.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+        </label>
+
         <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filters">
           {(Object.keys(FILTERS) as Filter[]).map((f) => (
             <button
@@ -258,7 +274,7 @@ function PubSearch() {
       {!loading && result.error && <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{result.error}</p>}
       {!loading && result.pubs?.length === 0 && (
         <div className="rounded border border-line bg-card p-4 text-sm">
-          <p>No pubs match.{has.length > 0 && " Filters like big screens only include pubs people have reviewed so far."}</p>
+          <p>No pubs match.{(has.length > 0 || fans) && " Filters like big screens and fans only include pubs people have reviewed so far."}</p>
           {filtered && <button onClick={clearFilters} className="mt-2 text-pitch underline">Clear filters</button>}
         </div>
       )}

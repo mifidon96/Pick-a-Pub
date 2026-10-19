@@ -23,6 +23,7 @@ function ReviewView() {
   const { ready, signedIn, available, headers, signIn } = useAuth();
   const [pub, setPub] = useState<PubDetail | null>(null);
   const [mine, setMine] = useState<Review | null | undefined>(undefined); // undefined = still loading
+  const [knownName, setKnownName] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -33,6 +34,7 @@ function ReviewView() {
         if (!live) return;
         setPub(d.pub);
         setMine(my?.review ?? null);
+        setKnownName(my?.display_name ?? "");
       })
       .catch((e: Error) => live && setError(e.message));
     return () => {
@@ -59,6 +61,7 @@ function ReviewView() {
           key={mine ? `${mine.id}-${mine.updated_at}` : "new"}
           pubId={pub.id}
           existing={mine ?? undefined}
+          defaultName={knownName}
           onSaved={() => router.replace(pubHref)}
         />
       ) : available ? (

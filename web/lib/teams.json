@@ -1,0 +1,410 @@
+[
+ {
+  "id": "afc-wimbledon",
+  "name": "AFC Wimbledon"
+ },
+ {
+  "id": "aberdeen",
+  "name": "Aberdeen"
+ },
+ {
+  "id": "accrington-stanley",
+  "name": "Accrington Stanley"
+ },
+ {
+  "id": "arsenal",
+  "name": "Arsenal"
+ },
+ {
+  "id": "aston-villa",
+  "name": "Aston Villa"
+ },
+ {
+  "id": "barnet",
+  "name": "Barnet"
+ },
+ {
+  "id": "barnsley",
+  "name": "Barnsley"
+ },
+ {
+  "id": "barrow",
+  "name": "Barrow"
+ },
+ {
+  "id": "birmingham-city",
+  "name": "Birmingham City"
+ },
+ {
+  "id": "blackburn-rovers",
+  "name": "Blackburn Rovers"
+ },
+ {
+  "id": "blackpool",
+  "name": "Blackpool"
+ },
+ {
+  "id": "bolton-wanderers",
+  "name": "Bolton Wanderers"
+ },
+ {
+  "id": "bournemouth",
+  "name": "Bournemouth"
+ },
+ {
+  "id": "bradford-city",
+  "name": "Bradford City"
+ },
+ {
+  "id": "brentford",
+  "name": "Brentford"
+ },
+ {
+  "id": "brighton-and-hove-albion",
+  "name": "Brighton & Hove Albion"
+ },
+ {
+  "id": "bristol-city",
+  "name": "Bristol City"
+ },
+ {
+  "id": "bristol-rovers",
+  "name": "Bristol Rovers"
+ },
+ {
+  "id": "bromley",
+  "name": "Bromley"
+ },
+ {
+  "id": "burnley",
+  "name": "Burnley"
+ },
+ {
+  "id": "burton-albion",
+  "name": "Burton Albion"
+ },
+ {
+  "id": "cambridge-united",
+  "name": "Cambridge United"
+ },
+ {
+  "id": "cardiff-city",
+  "name": "Cardiff City"
+ },
+ {
+  "id": "celtic",
+  "name": "Celtic"
+ },
+ {
+  "id": "charlton-athletic",
+  "name": "Charlton Athletic"
+ },
+ {
+  "id": "chelsea",
+  "name": "Chelsea"
+ },
+ {
+  "id": "cheltenham-town",
+  "name": "Cheltenham Town"
+ },
+ {
+  "id": "chesterfield",
+  "name": "Chesterfield"
+ },
+ {
+  "id": "colchester-united",
+  "name": "Colchester United"
+ },
+ {
+  "id": "coventry-city",
+  "name": "Coventry City"
+ },
+ {
+  "id": "crawley-town",
+  "name": "Crawley Town"
+ },
+ {
+  "id": "crewe-alexandra",
+  "name": "Crewe Alexandra"
+ },
+ {
+  "id": "crystal-palace",
+  "name": "Crystal Palace"
+ },
+ {
+  "id": "derby-county",
+  "name": "Derby County"
+ },
+ {
+  "id": "doncaster-rovers",
+  "name": "Doncaster Rovers"
+ },
+ {
+  "id": "england",
+  "name": "England"
+ },
+ {
+  "id": "everton",
+  "name": "Everton"
+ },
+ {
+  "id": "exeter-city",
+  "name": "Exeter City"
+ },
+ {
+  "id": "fleetwood-town",
+  "name": "Fleetwood Town"
+ },
+ {
+  "id": "fulham",
+  "name": "Fulham"
+ },
+ {
+  "id": "gillingham",
+  "name": "Gillingham"
+ },
+ {
+  "id": "grimsby-town",
+  "name": "Grimsby Town"
+ },
+ {
+  "id": "harrogate-town",
+  "name": "Harrogate Town"
+ },
+ {
+  "id": "heart-of-midlothian",
+  "name": "Heart of Midlothian"
+ },
+ {
+  "id": "hibernian",
+  "name": "Hibernian"
+ },
+ {
+  "id": "huddersfield-town",
+  "name": "Huddersfield Town"
+ },
+ {
+  "id": "hull-city",
+  "name": "Hull City"
+ },
+ {
+  "id": "ipswich-town",
+  "name": "Ipswich Town"
+ },
+ {
+  "id": "leeds-united",
+  "name": "Leeds United"
+ },
+ {
+  "id": "leicester-city",
+  "name": "Leicester City"
+ },
+ {
+  "id": "leyton-orient",
+  "name": "Leyton Orient"
+ },
+ {
+  "id": "lincoln-city",
+  "name": "Lincoln City"
+ },
+ {
+  "id": "liverpool",
+  "name": "Liverpool"
+ },
+ {
+  "id": "luton-town",
+  "name": "Luton Town"
+ },
+ {
+  "id": "manchester-city",
+  "name": "Manchester City"
+ },
+ {
+  "id": "manchester-united",
+  "name": "Manchester United"
+ },
+ {
+  "id": "mansfield-town",
+  "name": "Mansfield Town"
+ },
+ {
+  "id": "middlesbrough",
+  "name": "Middlesbrough"
+ },
+ {
+  "id": "millwall",
+  "name": "Millwall"
+ },
+ {
+  "id": "milton-keynes-dons",
+  "name": "Milton Keynes Dons"
+ },
+ {
+  "id": "newcastle-united",
+  "name": "Newcastle United"
+ },
+ {
+  "id": "newport-county",
+  "name": "Newport County"
+ },
+ {
+  "id": "northampton-town",
+  "name": "Northampton Town"
+ },
+ {
+  "id": "northern-ireland",
+  "name": "Northern Ireland"
+ },
+ {
+  "id": "norwich-city",
+  "name": "Norwich City"
+ },
+ {
+  "id": "nottingham-forest",
+  "name": "Nottingham Forest"
+ },
+ {
+  "id": "notts-county",
+  "name": "Notts County"
+ },
+ {
+  "id": "oldham-athletic",
+  "name": "Oldham Athletic"
+ },
+ {
+  "id": "oxford-united",
+  "name": "Oxford United"
+ },
+ {
+  "id": "peterborough-united",
+  "name": "Peterborough United"
+ },
+ {
+  "id": "plymouth-argyle",
+  "name": "Plymouth Argyle"
+ },
+ {
+  "id": "port-vale",
+  "name": "Port Vale"
+ },
+ {
+  "id": "portsmouth",
+  "name": "Portsmouth"
+ },
+ {
+  "id": "preston-north-end",
+  "name": "Preston North End"
+ },
+ {
+  "id": "queens-park-rangers",
+  "name": "Queens Park Rangers"
+ },
+ {
+  "id": "rangers",
+  "name": "Rangers"
+ },
+ {
+  "id": "reading",
+  "name": "Reading"
+ },
+ {
+  "id": "republic-of-ireland",
+  "name": "Republic of Ireland"
+ },
+ {
+  "id": "rotherham-united",
+  "name": "Rotherham United"
+ },
+ {
+  "id": "salford-city",
+  "name": "Salford City"
+ },
+ {
+  "id": "scotland",
+  "name": "Scotland"
+ },
+ {
+  "id": "sheffield-united",
+  "name": "Sheffield United"
+ },
+ {
+  "id": "sheffield-wednesday",
+  "name": "Sheffield Wednesday"
+ },
+ {
+  "id": "shrewsbury-town",
+  "name": "Shrewsbury Town"
+ },
+ {
+  "id": "southampton",
+  "name": "Southampton"
+ },
+ {
+  "id": "stevenage",
+  "name": "Stevenage"
+ },
+ {
+  "id": "stockport-county",
+  "name": "Stockport County"
+ },
+ {
+  "id": "stoke-city",
+  "name": "Stoke City"
+ },
+ {
+  "id": "sunderland",
+  "name": "Sunderland"
+ },
+ {
+  "id": "swansea-city",
+  "name": "Swansea City"
+ },
+ {
+  "id": "swindon-town",
+  "name": "Swindon Town"
+ },
+ {
+  "id": "tottenham-hotspur",
+  "name": "Tottenham Hotspur"
+ },
+ {
+  "id": "tranmere-rovers",
+  "name": "Tranmere Rovers"
+ },
+ {
+  "id": "wales",
+  "name": "Wales"
+ },
+ {
+  "id": "walsall",
+  "name": "Walsall"
+ },
+ {
+  "id": "watford",
+  "name": "Watford"
+ },
+ {
+  "id": "west-bromwich-albion",
+  "name": "West Bromwich Albion"
+ },
+ {
+  "id": "west-ham-united",
+  "name": "West Ham United"
+ },
+ {
+  "id": "wigan-athletic",
+  "name": "Wigan Athletic"
+ },
+ {
+  "id": "wolverhampton-wanderers",
+  "name": "Wolverhampton Wanderers"
+ },
+ {
+  "id": "wrexham",
+  "name": "Wrexham"
+ },
+ {
+  "id": "wycombe-wanderers",
+  "name": "Wycombe Wanderers"
+ }
+]
