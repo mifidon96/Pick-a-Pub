@@ -9,6 +9,7 @@ import { pendingExists, previewUrl, publish, removePending } from "./photos";
 // API Gateway, so only someone with AWS credentials can call them.
 export type AdminEvent =
   | { action: "migrate" }
+  | { action: "pub_count" }
   | { action: "import_pubs"; pubs: PubInput[]; tile?: string }
   | { action: "tile_status"; tile: string }
   | { action: "list_photos_to_copy"; limit?: number }
@@ -95,6 +96,12 @@ export async function runAdmin(event: AdminEvent): Promise<unknown> {
   }
 
   if (event.action === "apply_content") return applyContent(event.entries);
+
+  // Used by deploy.sh to import pubs automatically on a brand new database.
+  if (event.action === "pub_count") {
+    const { rows } = await db().query("select count(*)::int as n from pubs");
+    return { pubs: rows[0].n };
+  }
 
   if (event.action === "tile_status") {
     const { rows } = await db().query(

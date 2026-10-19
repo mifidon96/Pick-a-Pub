@@ -12,5 +12,5 @@ pubs.json
 *.tfstate
 *.tfstate.*
 *.tfvars
-!example.tfvars
+!infra/envs/*.tfvars
 .test/

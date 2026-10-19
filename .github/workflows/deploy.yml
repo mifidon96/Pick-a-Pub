@@ -1,0 +1,48 @@
+# Every merge to main: run the checks, deploy to dev, then wait for approval
+# before deploying the same commit to prod.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      import_pubs:
+        description: Re-import pubs from OpenStreetMap
+        type: boolean
+        default: false
+
+# One deploy at a time. A newer merge waits rather than cancelling a deploy halfway.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  dev:
+    needs: checks
+    if: vars.AWS_ACCOUNT_ID != ''
+    uses: ./.github/workflows/deploy-env.yml
+    with:
+      environment: dev
+      import_pubs: ${{ inputs.import_pubs == true }}
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write
+
+  prod:
+    needs: dev
+    uses: ./.github/workflows/deploy-env.yml
+    with:
+      environment: prod
+      import_pubs: ${{ inputs.import_pubs == true }}
+    secrets: inherit
+    permissions:
+      contents: read
+      id-token: write

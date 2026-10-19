@@ -1,0 +1,38 @@
+# Deploys one environment with scripts/deploy.sh. Called by deploy.yml.
+name: Deploy environment
+
+on:
+  workflow_call:
+    inputs:
+      environment: { type: string, required: true }
+      import_pubs: { type: boolean, default: false }
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    # The GitHub environment holds the rules: prod waits for your approval.
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ steps.deploy.outputs.site_url }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: "~1.13.0", terraform_wrapper: false }
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/pickapub-github-deploy-${{ inputs.environment }}
+          aws-region: eu-west-2
+      - id: deploy
+        run: |
+          flags=(--env "${{ inputs.environment }}" --yes)
+          [[ "${{ inputs.import_pubs }}" == "true" ]] || flags+=(--skip-pubs)
+          ./scripts/deploy.sh "${flags[@]}"
+          echo "site_url=$(terraform -chdir=infra output -raw site_url)" >> "$GITHUB_OUTPUT"

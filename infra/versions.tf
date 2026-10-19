@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.6"
+  required_version = ">= 1.10"
 
   required_providers {
     aws = {
@@ -16,14 +16,14 @@ terraform {
     }
   }
 
-  # Recommended before a real deploy: move state to S3 so the DB password in
-  # state is not sitting on your laptop.
-  # backend "s3" {
-  #   bucket       = "<your-state-bucket>"
-  #   key          = "pickapub/terraform.tfstate"
-  #   region       = "eu-west-2"
-  #   use_lockfile = true
-  # }
+  # State lives in S3, one file per environment. The bucket comes from
+  # infra/bootstrap; scripts/deploy.sh fills in the details:
+  #   bucket = pickapub-tfstate-<account id>, key = <env>/terraform.tfstate
+  backend "s3" {
+    region       = "eu-west-2"
+    encrypt      = true
+    use_lockfile = true
+  }
 }
 
 provider "aws" {
@@ -31,8 +31,14 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project   = var.project
-      ManagedBy = "terraform"
+      Project     = var.project
+      Environment = var.environment
+      ManagedBy   = "terraform"
     }
   }
+}
+
+locals {
+  # Every resource name starts with this, e.g. pickapub-prod-api.
+  name = "${var.project}-${var.environment}"
 }

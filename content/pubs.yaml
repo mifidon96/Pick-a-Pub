@@ -1,6 +1,6 @@
 # Pick-a-Pub verdicts and pub details.
 #
-# Edit this file, then deploy with:  AWS_PROFILE=sandpit ./scripts/deploy.sh --skip-pubs
+# Edit this file and merge to main, or deploy with:  AWS_PROFILE=personal ./scripts/deploy.sh --env prod --skip-pubs
 # This file is the source of truth: removing a pub here removes its verdict from the site.
 # Verdicts are shown on their own and are never part of the customer star rating.
 #

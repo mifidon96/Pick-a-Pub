@@ -9,7 +9,7 @@ data "archive_file" "importer" {
 }
 
 resource "aws_iam_role" "importer" {
-  name               = "${var.project}-importer"
+  name               = "${local.name}-importer"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume.json
 }
 
@@ -24,7 +24,7 @@ data "aws_iam_policy_document" "importer" {
     resources = [
       aws_lambda_function.admin.arn,
       # Itself, to run the import in the background. Built from the name to avoid a cycle.
-      "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${var.project}-importer",
+      "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${local.name}-importer",
     ]
   }
 }
@@ -52,12 +52,12 @@ resource "aws_iam_role_policy" "importer" {
 data "aws_caller_identity" "current" {}
 
 resource "aws_cloudwatch_log_group" "importer" {
-  name              = "/aws/lambda/${var.project}-importer"
+  name              = "/aws/lambda/${local.name}-importer"
   retention_in_days = 14
 }
 
 resource "aws_lambda_function" "importer" {
-  function_name    = "${var.project}-importer"
+  function_name    = "${local.name}-importer"
   role             = aws_iam_role.importer.arn
   runtime          = "nodejs22.x"
   architectures    = ["arm64"]

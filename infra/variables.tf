@@ -4,6 +4,21 @@ variable "project" {
   default     = "pickapub"
 }
 
+variable "environment" {
+  description = "dev or prod. Set in envs/<env>.tfvars."
+  type        = string
+  validation {
+    condition     = contains(["dev", "prod"], var.environment)
+    error_message = "environment must be dev or prod."
+  }
+}
+
+variable "alert_email" {
+  description = "Where CloudWatch alarms are emailed. Kept out of git: set TF_VAR_alert_email."
+  type        = string
+  default     = ""
+}
+
 variable "region" {
   type    = string
   default = "eu-west-2"

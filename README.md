@@ -61,7 +61,7 @@ that override OpenStreetMap. They show as a "Pick-a-Pub verdict" panel on the pu
 page and an "Our verdict" badge in the list, and are never part of the customer
 star rating.
 
-Edit the file, then `./scripts/deploy.sh --skip-pubs`. The file is the source of
+Edit the file and merge to main (or `./scripts/deploy.sh --env prod --skip-pubs`). The file is the source of
 truth: remove a pub from it and its verdict is removed from the site. Mistakes
 (bad rating, unknown field) stop the deploy step and change nothing. Names are matched loosely ("The Regent" = "Regent"); a name that matches no pub is skipped with a warning in the deploy output. To check the
 file without deploying: `cd api && npm run admin -- content-json ../content/pubs.yaml /tmp/out.json`.
@@ -99,7 +99,8 @@ at most every 30 days. UK only, and the import route is throttled.
 | `api/` | TypeScript API. Runs as a local server or as AWS Lambda |
 | `web/` | Next.js frontend, built as a static site |
 | `infra/` | Terraform for AWS (eu-west-2) |
-| `scripts/` | Import pubs from OpenStreetMap |
+| `scripts/` | Deploy, one-off account setup, pub import, photo moderation |
+| `.github/workflows/` | CI on pull requests, deploy on merge |
 
 ## Architecture
 
@@ -134,39 +135,80 @@ Locally you are signed in as a fake user (`NEXT_PUBLIC_DEV_USER`), so you can po
 
 ## Deploy to AWS
 
-Needs the AWS CLI v2 (signed in to your own account), Terraform 1.6+ and Node 22.
+Two environments, **dev** and **prod**, each a full copy of the stack
+(`infra/envs/<env>.tfvars`). Terraform state lives in S3, one file per environment.
+
+### One-off account setup
+
+Needs the AWS CLI v2 (signed in to your account), Terraform 1.10+, Node 22 and,
+ideally, the GitHub CLI (`gh auth login`).
 
 ```bash
-./scripts/deploy.sh
+AWS_PROFILE=personal ./scripts/bootstrap.sh
 ```
 
-It shows which AWS account it is about to use and asks before doing anything.
-The first run asks for a sign-in page prefix (e.g. `pickapub-morgan`) and takes
-10 to 15 minutes, mostly creating the database. It then:
+This creates (`infra/bootstrap/`):
+
+- the state bucket `pickapub-tfstate-<account id>` (versioned, encrypted, HTTPS only)
+- GitHub Actions sign-in to AWS with OIDC, so no AWS keys are stored in GitHub
+- three roles: `pickapub-github-plan` (read-only, pull requests),
+  `pickapub-github-deploy-dev` and `pickapub-github-deploy-prod`
+- a monthly budget alert (25 USD)
+
+With `gh` it also sets up the repo: the `AWS_ACCOUNT_ID` variable, the
+`ALERT_EMAIL` secret, and the `dev` and `prod` environments (prod needs your
+approval; both deploy from `main` only). Without `gh` it prints the steps.
+
+### Day to day: GitHub Actions
+
+| When | What runs |
+| --- | --- |
+| Pull request | API tests, star rating tests, site lint and build, Terraform fmt and validate, Terraform plan against prod |
+| Merge to main | The same checks, then deploy to **dev**, then wait for you to approve **prod** in the Actions tab |
+| Actions > Deploy > Run workflow | Same, with an option to re-import pubs |
+| Actions > Tear down dev > Run workflow | Destroys dev to save money. The next deploy recreates it |
+
+### From your laptop
+
+```bash
+AWS_PROFILE=personal ./scripts/deploy.sh --env dev
+AWS_PROFILE=personal ./scripts/deploy.sh --env prod
+```
+
+It shows the account and environment and asks before doing anything. It then:
 
 1. builds the API and runs `terraform apply` (Terraform shows the plan and asks again)
-2. creates the database tables
-3. imports pubs for every area in `web/lib/areas.json` from OpenStreetMap
-4. builds the site with the live API and sign-in settings, uploads it to S3 and clears the CloudFront cache
-5. prints the site URL
+2. creates or updates the database tables
+3. imports pubs from OpenStreetMap (`--skip-pubs` skips this, except on an empty database)
+4. copies Wikimedia photos, uploads `content/photos/` and applies `content/pubs.yaml`
+5. builds the site with the live API and sign-in settings, uploads it and clears the CloudFront cache
+6. prints the site and dashboard URLs
 
-Run the same command to deploy changes. Use `--skip-pubs` to skip the pub import.
-To pick an AWS profile: `AWS_PROFILE=personal ./scripts/deploy.sh`.
+### Monitoring
 
-To take it all down (deletes the database): `terraform -chdir=infra destroy`.
+Each environment has a CloudWatch dashboard (URL printed by the deploy) and
+alarms emailed to `ALERT_EMAIL`: Lambda errors, API throttles, API 5xx, slow API
+(p95 over 3 s), and database CPU, memory and storage. AWS emails a confirmation
+link the first time; click it or no alarms arrive.
+
+### Taking it down
+
+- dev: Actions > Tear down dev, or `terraform -chdir=infra destroy -var-file=envs/dev.tfvars`
+  after a dev deploy.
+- prod has deletion protection on the database. Set `deletion_protection = false`
+  in `infra/envs/prod.tfvars` and deploy before destroying. The photos bucket
+  must be emptied first.
 
 ## Known gaps
 
-- [ ] Terraform passes `validate` against the real AWS provider but has not been applied yet.
-- [ ] Cognito sign-in has not been tested against a live user pool.
-- [ ] The OpenStreetMap import has not been run. Check the pub list it produces before importing.
-- [ ] The database password is a Lambda environment variable and sits in Terraform state. Move state to S3 (see `infra/versions.tf`) and consider Secrets Manager.
-- [ ] No moderation yet: no report button, no admin delete, no per-user rate limit beyond API Gateway throttling.
-- [ ] No privacy policy or delete-my-account flow (needed under UK GDPR before real users sign up).
-- [ ] No CI/CD. A GitHub Actions workflow for steps 1, 2 and 5 is the natural next piece.
+- [ ] The database password is a Lambda environment variable and sits in Terraform
+  state (S3, encrypted). Secrets Manager needs a VPC endpoint, which costs money.
+- [ ] The deploy roles use AdministratorAccess. Fine for a personal account; scope
+  them down before anyone else can merge to main.
 
 ## Cost
 
-The always-on cost is the RDS instance (`db.t4g.micro`). Everything else is
-pay-per-use and close to zero at low traffic. Run `terraform destroy` when you are
-not using it, and set an AWS Budgets alert.
+The always-on cost is the RDS instance (`db.t4g.micro`), about 12 GBP a month per
+environment. Everything else is pay-per-use and close to zero at low traffic, plus
+a few pence for alarms. Two environments is roughly 25 GBP a month: tear down dev
+when you are not using it.

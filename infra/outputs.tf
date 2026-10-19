@@ -36,3 +36,11 @@ output "importer_function" {
 output "admin_function" {
   value = aws_lambda_function.admin.function_name
 }
+
+output "environment" {
+  value = var.environment
+}
+
+output "dashboard_url" {
+  value = "https://${var.region}.console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards/dashboard/${aws_cloudwatch_dashboard.main.dashboard_name}"
+}

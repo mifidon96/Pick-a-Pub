@@ -1,18 +1,33 @@
 #!/usr/bin/env bash
-# Deploy Pick-a-Pub to AWS from your laptop.
+# Deploy Pick-a-Pub to AWS. GitHub Actions runs this on every merge to main;
+# you can also run it from your laptop.
 #
-#   ./scripts/deploy.sh              full deploy (first time and every time after)
-#   ./scripts/deploy.sh --skip-pubs  same, but do not re-import pubs from OpenStreetMap
+#   ./scripts/deploy.sh --env dev              deploy to dev
+#   ./scripts/deploy.sh --env prod             deploy to prod
 #
-# Needs: aws CLI v2 (signed in), terraform >= 1.6, node 22, npm.
-# Use AWS_PROFILE=<name> to pick an account. The script shows which account it
-# will deploy to and asks before changing anything.
+# Options:
+#   --skip-pubs   do not re-import pubs from OpenStreetMap (a new, empty database
+#                 is always imported)
+#   --yes         do not ask before changing anything (used by GitHub Actions)
+#
+# Needs: aws CLI v2 (signed in), terraform >= 1.10, node 22, npm, and the
+# one-off account setup in scripts/bootstrap.sh.
+# Use AWS_PROFILE=<name> to pick an account.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 INFRA="$ROOT/infra"
+ENV=""
 SKIP_PUBS=false
-[[ "${1:-}" == "--skip-pubs" ]] && SKIP_PUBS=true
+YES=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --env) ENV="${2:-}"; shift 2 ;;
+    --skip-pubs) SKIP_PUBS=true; shift ;;
+    --yes) YES=true; shift ;;
+    *) echo "Unknown option: $1" >&2; exit 1 ;;
+  esac
+done
 
 step() { printf '\n\033[1;32m==> %s\033[0m\n' "$*"; }
 fail() { printf '\033[1;31mError: %s\033[0m\n' "$*" >&2; exit 1; }
@@ -31,6 +46,8 @@ admin_invoke() {
   rm -f "$out"
 }
 
+[[ "$ENV" == "dev" || "$ENV" == "prod" ]] || fail "choose an environment: --env dev or --env prod"
+
 step "Checking tools"
 export AWS_PAGER=""
 for t in aws terraform node npm; do command -v "$t" >/dev/null || fail "$t is not installed"; done
@@ -42,24 +59,31 @@ ARN="$(aws sts get-caller-identity --query Arn --output text)"
 echo "Account: $ACCOUNT"
 echo "Identity: $ARN"
 echo "Region: eu-west-2"
-read -r -p "Deploy Pick-a-Pub into this account? [y/N] " ok
-[[ "$ok" =~ ^[Yy]$ ]] || fail "cancelled"
+echo "Environment: $ENV"
+if [[ "$YES" == false ]]; then
+  read -r -p "Deploy Pick-a-Pub ($ENV) into this account? [y/N] " ok
+  [[ "$ok" =~ ^[Yy]$ ]] || fail "cancelled"
+fi
 
-if [[ ! -f "$INFRA/terraform.tfvars" ]]; then
-  step "First run: choosing a name for the sign-in page"
-  echo "Pick a prefix for the sign-in page, e.g. pickapub-morgan."
-  echo "It becomes https://<prefix>.auth.eu-west-2.amazoncognito.com and must be unique."
-  read -r -p "Prefix: " prefix
-  [[ "$prefix" =~ ^[a-z0-9-]{3,60}$ ]] || fail "use 3 to 60 lowercase letters, numbers or dashes"
-  printf 'cognito_domain_prefix = "%s"\n' "$prefix" > "$INFRA/terraform.tfvars"
+STATE_BUCKET="pickapub-tfstate-$ACCOUNT"
+aws s3api head-bucket --bucket "$STATE_BUCKET" 2>/dev/null \
+  || fail "no state bucket $STATE_BUCKET in this account. Run ./scripts/bootstrap.sh once first."
+
+# Alarm emails: GitHub Actions passes TF_VAR_alert_email. On a laptop, reuse the
+# address given to bootstrap.sh.
+if [[ -z "${TF_VAR_alert_email:-}" && -f "$INFRA/bootstrap/terraform.tfvars" ]]; then
+  TF_VAR_alert_email="$(sed -n 's/^alert_email *= *"\(.*\)"/\1/p' "$INFRA/bootstrap/terraform.tfvars")"
+  export TF_VAR_alert_email
 fi
 
 step "Building the API"
 (cd "$ROOT/api" && npm ci --no-audit --no-fund && npm run build)
 
 step "Creating or updating AWS resources (first run takes 10 to 15 minutes, mostly the database)"
-terraform -chdir="$INFRA" init -input=false
-terraform -chdir="$INFRA" apply
+terraform -chdir="$INFRA" init -input=false -reconfigure \
+  -backend-config="bucket=$STATE_BUCKET" -backend-config="key=$ENV/terraform.tfstate"
+APPROVE=(); [[ "$YES" == true ]] && APPROVE=(-auto-approve)
+terraform -chdir="$INFRA" apply -input=false -var-file="envs/$ENV.tfvars" ${APPROVE[@]+"${APPROVE[@]}"}
 
 step "Waiting for the Lambdas to be ready"
 aws lambda wait function-updated-v2 --function-name "$(tf_out admin_function)"
@@ -68,6 +92,17 @@ aws lambda wait function-updated-v2 --function-name "$(tf_out importer_function)
 step "Creating or updating database tables"
 tmp="$(mktemp)"; echo '{"action":"migrate"}' > "$tmp"
 admin_invoke "$tmp"; rm -f "$tmp"
+
+if [[ "$SKIP_PUBS" == true ]]; then
+  tmp="$(mktemp)"; echo '{"action":"pub_count"}' > "$tmp"
+  aws lambda invoke --function-name "$(tf_out admin_function)" --cli-binary-format raw-in-base64-out \
+    --payload "fileb://$tmp" "$tmp.out" >/dev/null
+  if grep -q '"pubs":0' "$tmp.out"; then
+    echo "The database has no pubs yet, so importing them anyway."
+    SKIP_PUBS=false
+  fi
+  rm -f "$tmp" "$tmp.out"
+fi
 
 if [[ "$SKIP_PUBS" == false ]]; then
   step "Importing pubs for every area from OpenStreetMap"
@@ -121,5 +156,6 @@ step "Checking the API"
 curl -fsS "$(tf_out api_url)/pubs?lat=51.4431&lng=-0.1525" | head -c 300; echo
 
 step "Done"
-echo "Site: $(tf_out site_url)"
+echo "Site ($ENV): $(tf_out site_url)"
+echo "Dashboard: $(tf_out dashboard_url)"
 echo "It can take a few minutes for CloudFront to serve the new version."
