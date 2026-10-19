@@ -96,6 +96,14 @@ step "Waiting for the Lambdas to be ready"
 aws lambda wait function-updated-v2 --function-name "$(tf_out admin_function)"
 aws lambda wait function-updated-v2 --function-name "$(tf_out importer_function)"
 
+step "Setting up the app's database login (IAM, no password)"
+# The master password goes to the admin Lambda for this one call only. It is
+# never printed and the payload file is removed straight away.
+tmp="$(mktemp)"; chmod 600 "$tmp"
+terraform -chdir="$INFRA" output -raw db_master_password \
+  | node -e 'let p="";process.stdin.on("data",c=>p+=c).on("end",()=>process.stdout.write(JSON.stringify({action:"setup_db_user",master_password:p})))' > "$tmp"
+admin_invoke "$tmp"; rm -f "$tmp"
+
 step "Creating or updating database tables"
 tmp="$(mktemp)"; echo '{"action":"migrate"}' > "$tmp"
 admin_invoke "$tmp"; rm -f "$tmp"

@@ -1,0 +1,25 @@
+# Weekly pull requests to keep dependencies up to date. Small updates are
+# grouped into one PR per folder so there are only a few to review; CI runs on
+# each, so merge when it is green.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /api
+    schedule: { interval: weekly, day: monday }
+    groups:
+      minor-and-patch: { update-types: [minor, patch] }
+  - package-ecosystem: npm
+    directory: /web
+    schedule: { interval: weekly, day: monday }
+    groups:
+      minor-and-patch: { update-types: [minor, patch] }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    groups:
+      actions: { patterns: ["*"] }
+  - package-ecosystem: terraform
+    directories: [/infra, /infra/bootstrap]
+    schedule: { interval: weekly, day: monday }
+    groups:
+      providers: { patterns: ["*"] }

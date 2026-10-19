@@ -311,10 +311,25 @@ AWS_PROFILE=personal ./scripts/moderate.sh list
 AWS_PROFILE=personal ./scripts/moderate.sh hide|restore|delete <review id>
 ```
 
+## Security
+
+- **No database password in the app.** The Lambdas log in as `pickapub_app` with a
+  15-minute IAM token they sign themselves (`api/src/db.ts`), allowed by an
+  `rds-db:connect` policy for that one user. Signing is local, so no VPC endpoint
+  or Secrets Manager charge. The master password exists only in Terraform state
+  (encrypted S3) and is passed to the admin Lambda once per deploy to create or
+  update that user (`api/src/dbuser.ts`, the `setup_db_user` step in `deploy.sh`).
+- **Dependencies**: Dependabot opens grouped update PRs every Monday for the API,
+  the site, GitHub Actions and Terraform providers (`.github/dependabot.yml`).
+  CI fails on any high or critical vulnerability in packages that ship
+  (`npm audit --omit=dev`). Also turn on Settings > Advanced Security >
+  Dependabot alerts.
+- **Secret scan**: gitleaks checks every pull request, including all its commits.
+
 ## Known gaps
 
-- [ ] The database password is a Lambda environment variable and sits in Terraform
-  state (S3, encrypted). Secrets Manager needs a VPC endpoint, which costs money.
+- [ ] The database master password is in Terraform state (encrypted, private S3).
+  Only deploy.sh reads it.
 - [ ] Deleted photos are removed from S3 but CloudFront may serve a cached copy
   at the same (unguessable) address until it expires.
 - [ ] The deploy roles use AdministratorAccess. Fine for a personal account; scope

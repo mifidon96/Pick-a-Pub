@@ -27,22 +27,38 @@ resource "aws_iam_role_policy_attachment" "lambda_vpc" {
 }
 
 locals {
-  # Simplification for the first version: the DB password is a Lambda environment
-  # variable. The tidier option is Secrets Manager, but that needs a VPC endpoint
-  # (a monthly charge) because this VPC has no route to the internet.
+  # No database password here: the Lambdas sign a 15-minute IAM login token for
+  # db_app_user each time they connect (api/src/db.ts). deploy.sh creates that
+  # user with the master password, passed in for that one call only.
+  db_app_user = "pickapub_app"
   lambda_env = {
-    PGHOST     = aws_db_instance.main.address
-    PGPORT     = tostring(aws_db_instance.main.port)
-    PGDATABASE = aws_db_instance.main.db_name
-    PGUSER     = aws_db_instance.main.username
-    PGPASSWORD = random_password.db.result
-    PGSSL      = "1"
+    PGHOST       = aws_db_instance.main.address
+    PGPORT       = tostring(aws_db_instance.main.port)
+    PGDATABASE   = aws_db_instance.main.db_name
+    PGUSER       = local.db_app_user
+    PGAUTH       = "iam"
+    PGMASTERUSER = aws_db_instance.main.username
+    PGSSL        = "1"
     # Photos: uploads go to this bucket, approved ones are served by CloudFront.
     PHOTOS_BUCKET   = aws_s3_bucket.photos.bucket
     PHOTOS_BASE_URL = local.site_url
     # Makes Node trust the RDS certificate authority shipped with the Lambda runtime.
     NODE_EXTRA_CA_CERTS = "/var/runtime/ca-cert.pem"
   }
+}
+
+# Allows the Lambdas to log in to the database as the app user, and nothing else.
+data "aws_iam_policy_document" "db_connect" {
+  statement {
+    actions   = ["rds-db:connect"]
+    resources = ["arn:aws:rds-db:${var.region}:${data.aws_caller_identity.current.account_id}:dbuser:${aws_db_instance.main.resource_id}/${local.db_app_user}"]
+  }
+}
+
+resource "aws_iam_role_policy" "db_connect" {
+  name   = "db-connect"
+  role   = aws_iam_role.lambda.id
+  policy = data.aws_iam_policy_document.db_connect.json
 }
 
 resource "aws_cloudwatch_log_group" "api" {
