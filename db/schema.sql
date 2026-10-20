@@ -69,6 +69,10 @@ create table if not exists reviews (
 alter table reviews add column if not exists dog_friendly   boolean;
 alter table reviews add column if not exists low_no_alcohol boolean;  -- decent low or no alcohol drinks
 
+-- Added after survey round 3 (42 responses).
+alter table reviews add column if not exists arrive_early  boolean;  -- get there early to get a seat for big games
+alter table reviews add column if not exists several_games boolean;  -- shows several games at once
+
 create index if not exists reviews_pub_idx on reviews (pub_id, updated_at desc);
 
 -- Quick review (feedback round 2): only sightlines, screens and crowd are
@@ -105,7 +109,7 @@ create index if not exists review_reports_open_idx on review_reports (review_id)
 -- ---------------------------------------------------------------------------
 
 -- How much each category counts. Generated from the survey by
--- scripts/survey_weights.py (30 responses, Oct 2026). Applied on every deploy.
+-- scripts/survey_weights.py (42 responses, Oct 2026). Applied on every deploy.
 create table if not exists rating_weights (
   category text primary key
     check (category in ('sightlines','crowd','screens','seating','commentary','service_speed','drink_prices')),
@@ -113,11 +117,11 @@ create table if not exists rating_weights (
 );
 
 insert into rating_weights (category, weight) values
-  ('sightlines', 0.19),
+  ('sightlines', 0.18),
   ('screens', 0.15),
   ('crowd', 0.15),
   ('commentary', 0.14),
-  ('seating', 0.13),
+  ('seating', 0.14),
   ('service_speed', 0.13),
   ('drink_prices', 0.11)
 on conflict (category) do update set weight = excluded.weight;
@@ -220,6 +224,8 @@ agg as (
     avg(step_free::int)       >= 0.5                  as step_free,
     avg(dog_friendly::int)    >= 0.5                  as dog_friendly,
     avg(low_no_alcohol::int)  >= 0.5                  as low_no_alcohol,
+    avg(arrive_early::int)    >= 0.5                  as arrive_early,
+    avg(several_games::int)   >= 0.5                  as several_games,
     max(updated_at)                                   as last_reviewed_at
   from reviews where not hidden group by pub_id
 ),

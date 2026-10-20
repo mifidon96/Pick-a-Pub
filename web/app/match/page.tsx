@@ -8,6 +8,7 @@ import {
   type Fixture, type Pub,
 } from "@/lib/api";
 import PubCard from "@/components/PubCard";
+import SendPlan from "@/components/SendPlan";
 import { lastList } from "@/lib/lastList";
 import { usePageInfo } from "@/lib/pageInfo";
 import AREAS from "@/lib/areas.json";
@@ -161,7 +162,7 @@ function MatchPubs({ id }: { id: number }) {
 
   useEffect(() => {
     let live = true;
-    fixturePubs(id, centre.lat, centre.lng, 3000)
+    fixturePubs(id, centre.lat, centre.lng)
       .then((r) => live && setData({ key, ...r }))
       .catch((e: Error) => live && setData({ key, error: e.message }));
     return () => {
@@ -240,13 +241,14 @@ function MatchPubs({ id }: { id: number }) {
           {data.pubs?.length === 0 && <p className="rounded border border-line bg-card p-4 text-sm">No pubs found near {centre.label}.</p>}
           <ul className="space-y-3">
             {data.pubs?.map((p) => (
-              <li key={p.id}>
+              <li key={p.id} className="space-y-2">
                 <PubCard
                   pub={p}
                   extra={
                     <MatchChips pub={p} fixture={f} channelLabel={channelLabel} rival={rival} />
                   }
                 />
+                <SendPlan fixture={f} pub={p} />
               </li>
             ))}
           </ul>

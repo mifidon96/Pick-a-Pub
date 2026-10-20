@@ -124,7 +124,6 @@ function PubDetailView() {
             {r.comment && <p className="mt-2">{r.comment}</p>}
             <p className="mt-2 text-xs text-muted">
               {SCORE_KEYS.filter((k) => r[k] !== null).map((k) => `${SCORE_LABELS[k].label} ${r[k]}`).join(" · ")}
-              {r.food !== null && ` · Food ${r.food}`}
               {r.fan_team && ` · Fans here: ${teamName(r.fan_team)}`}
             </p>
             <ReportButton reviewId={r.id} />
@@ -141,7 +140,6 @@ function PubDetailView() {
 const INFO_ROWS: [keyof PubInfo, string][] = [
   ["opening_hours", "Opening hours"],
   ["screens", "Screens"],
-  ["food", "Food"],
   ["drinks", "Drinks"],
   ["beer_garden", "Beer garden"],
   ["booking", "Booking"],

@@ -42,6 +42,15 @@ assert.equal(r.status, 400);
 r = await handle({ method: "GET", path: "/pubs", ...as(undefined, {}, { ...near, has: "away_friendly" }) });
 assert.equal(r.status, 200, "away_friendly is a filter");
 
+// Survey round 3: "get there early" and "several games at once".
+r = await handle({ method: "PUT", path: `/pubs/${PUB}/review`, ...as(U[2], { display_name: "Quick Three", sightlines: 4, screens: 4, crowd: 4, arrive_early: true, several_games: true }) });
+assert.equal(r.status, 200);
+r = await handle({ method: "GET", path: "/pubs", ...as(undefined, {}, { ...near, has: "several_games" }) });
+const multi = (r.body as { pubs: { id: number; several_games: boolean; arrive_early: boolean }[] }).pubs;
+assert.ok(multi.some((p) => p.id === PUB && p.several_games && p.arrive_early), "new facts stored and filterable");
+r = await handle({ method: "GET", path: "/pubs", ...as(undefined, {}, { lat: "51.4431", lng: "-0.1525" }) });
+assert.equal(r.status, 200, "5 km default radius");
+
 await db().query("delete from users where id like 'rev-test-%'");
 console.log("review tests passed");
 await db().end();
