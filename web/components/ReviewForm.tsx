@@ -97,6 +97,22 @@ export default function ReviewForm({ pubId, existing, defaultName, onSaved }: Pr
         </label>
       </div>
 
+      {/* Ticked = yes. Left unticked = not answered (never counted as "no"). */}
+      <label className="flex items-center gap-3 text-sm">
+        <input
+          type="checkbox"
+          checked={facts.arrive_early === true}
+          onChange={(e) => setFacts((f) => {
+            const next = { ...f };
+            if (e.target.checked) next.arrive_early = true;
+            else delete next.arrive_early;
+            return next;
+          })}
+          className="h-5 w-5 accent-pitch"
+        />
+        <span>Get there early for a seat on big games</span>
+      </label>
+
       <label className="block text-sm">
         <span className="font-medium">Your review (optional)</span>
         <textarea
@@ -118,17 +134,7 @@ export default function ReviewForm({ pubId, existing, defaultName, onSaved }: Pr
           <div className="space-y-3 border-t border-line pt-4">
             <p className="text-xs text-muted">All optional. Skip anything you did not notice.</p>
             {EXTRA_KEYS.map((k) => (
-              <div key={k} className="space-y-2">
-                <Picker label={SCORE_LABELS[k].label} hint={SCORE_LABELS[k].hint} value={scores[k] ?? null} onChange={(v) => setScores((s) => ({ ...s, [k]: v ?? undefined }))} clearable />
-                {k === "seating" && (
-                  <YesNo label={FACT_LABELS.arrive_early} value={facts.arrive_early} onChange={(v) => setFacts((f) => {
-                    const next = { ...f };
-                    if (v === undefined) delete next.arrive_early;
-                    else next.arrive_early = v;
-                    return next;
-                  })} />
-                )}
-              </div>
+              <Picker key={k} label={SCORE_LABELS[k].label} hint={SCORE_LABELS[k].hint} value={scores[k] ?? null} onChange={(v) => setScores((s) => ({ ...s, [k]: v ?? undefined }))} clearable />
             ))}
           </div>
 
@@ -219,25 +225,3 @@ function Picker(props: { label: string; hint: string; value: number | null; onCh
   );
 }
 
-// A yes/no answer that can be left blank (tap again to clear).
-function YesNo(props: { label: string; value: boolean | undefined; onChange: (v: boolean | undefined) => void }) {
-  const { label, value, onChange } = props;
-  return (
-    <div className="flex items-center justify-between gap-3 text-sm">
-      <span className="text-muted">{label}?</span>
-      <span className="flex gap-1">
-        {([true, false] as const).map((v) => (
-          <button
-            key={String(v)}
-            type="button"
-            aria-pressed={value === v}
-            onClick={() => onChange(value === v ? undefined : v)}
-            className={`w-12 rounded border px-2 py-1 ${value === v ? "border-pitch bg-pitch text-white" : "border-line bg-chalk"}`}
-          >
-            {v ? "Yes" : "No"}
-          </button>
-        ))}
-      </span>
-    </div>
-  );
-}

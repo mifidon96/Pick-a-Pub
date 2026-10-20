@@ -23,9 +23,9 @@ Seeing a screen is near-unanimous (4.95 out of 5). Fast service beat range of dr
 20 to 7, which backs the bar service estimate. 39 of 42 said they would use the app.
 
 **Quick review**: view of a screen, screens and crowd (three taps), a display name,
-whose fans watch there and an optional written review (prompted for value for money,
+whose fans watch there, a "get there early for a seat" tick box and an optional written review (prompted for value for money,
 music over the commentary, anything that spoiled it). "Add more detail" opens
-seating (with "get there early for a seat?"), commentary, bar service, drink prices,
+seating, commentary, bar service, drink prices,
 vibe, the yes/no facts and the match watched. A category nobody has scored for a pub
 counts as the area average, so quick reviews still give fair stars.
 
