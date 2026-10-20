@@ -6,23 +6,31 @@ who watched a match there. Launch area: Balham.
 ## The star rating
 
 Reviewers score 7 things from 1 to 5. The weights come from a survey of what
-football fans say matters (`scripts/survey_weights.py`, 30 responses so far):
+football fans say matters (`scripts/survey_weights.py`, 42 responses so far):
 
 | Category | Question | Weight |
 | --- | --- | --- |
-| View of a screen | Could you see it from where you sat? | 19% |
+| View of a screen | Could you see it from where you sat? | 18% |
 | Screens | Size and picture quality | 15% |
 | Crowd | There to watch, not too packed | 15% (estimate) |
-| Commentary | Sound on and audible | 14% |
-| Seating | Chance of getting a seat | 13% |
+| Commentary | Sound on and audible, no music or band over it | 14% |
+| Seating | Chance of getting a seat | 14% |
 | Bar service | How quick | 13% (estimate) |
 | Drink prices | Value for money | 11% |
 
 Crowd and bar service were not asked directly in the survey, so they are estimates.
+Seeing a screen is near-unanimous (4.95 out of 5). Fast service beat range of drinks
+20 to 7, which backs the bar service estimate. 39 of 42 said they would use the app.
 
-**Quick review**: only view of a screen, screens and crowd are required (three
-taps). The rest is behind "Add more detail". A category nobody has scored for a
-pub counts as the area average, so quick reviews still give fair stars.
+**Quick review**: view of a screen, screens and crowd (three taps), a display name,
+whose fans watch there and an optional written review (prompted for value for money,
+music over the commentary, anything that spoiled it). "Add more detail" opens
+seating (with "get there early for a seat?"), commentary, bar service, drink prices,
+vibe, the yes/no facts and the match watched. A category nobody has scored for a pub
+counts as the area average, so quick reviews still give fair stars.
+
+Food is no longer asked or shown: the app is about the football, and food is
+covered well elsewhere. Old food answers stay in the database.
 
 How a pub's stars are worked out (`pub_scores` view in `db/schema.sql`):
 1. Newer reviews count more: a review's weight halves every 365 days.
@@ -32,8 +40,14 @@ How a pub's stars are worked out (`pub_scores` view in `db/schema.sql`):
 5. Rounded to the nearest half star. Stars show from the first review; pubs with fewer than 3 reviews say the rating may change. Equal stars are ordered by number of reviews.
 
 Not in the stars: **vibe** (calm to lively, a filter instead because people want
-opposite things), **food**, and yes/no facts (Sky, TNT, Amazon, bookable, outdoor
-screen, away fans, family friendly, step-free).
+opposite things) and yes/no facts (Sky, TNT, Amazon, bookable, outdoor screen, away
+fans, family friendly, step-free, dog friendly, low/no alcohol, several games at
+once, get there early). "Several games at once" is also a filter.
+
+**Search radius** defaults to 5 km: 35 of 42 fans would travel 20 minutes or more.
+
+**Send the plan to the group**: on a match page, each pub has a button that shares
+the match, kick-off, channel, pub and link (phone share sheet, or WhatsApp).
 
 **Home and away fans**: reviewers can say whose fans mostly watch at a pub
 (`web/lib/teams.json`: every Premier League and EFL club, the big Scottish clubs and

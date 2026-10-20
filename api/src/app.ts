@@ -22,7 +22,7 @@ const TEAM_IDS = new Set(teams.map((t) => t.id));
 const FACTS = [
   "shows_sky", "shows_tnt", "shows_amazon", "bookable",
   "outdoor_screen", "away_friendly", "family_friendly", "step_free",
-  "dog_friendly", "low_no_alcohol",
+  "dog_friendly", "low_no_alcohol", "arrive_early", "several_games",
 ] as const;
 
 class HttpError extends Error {
@@ -61,7 +61,7 @@ const AWAY_OK = `coalesce((e.about->>'away_fans')::boolean, s.away_friendly)`;
 const SCORE_COLS = `s.review_count, s.stars, s.score, ${SCORES.map((k) => `s.${k}`).join(", ")}, s.food, s.vibe,
   s.shows_sky, s.shows_tnt, s.shows_amazon, s.bookable, s.outdoor_screen,
   ${AWAY_OK} as away_friendly, ${FAN_TEAM} as fan_team,
-  s.family_friendly, s.step_free, s.dog_friendly, s.low_no_alcohol, s.last_reviewed_at`;
+  s.family_friendly, s.step_free, s.dog_friendly, s.low_no_alcohol, s.arrive_early, s.several_games, s.last_reviewed_at`;
 
 // Things a visitor can filter on. Each combines customer reviews (majority yes)
 // with pub details from OpenStreetMap and content/pubs.yaml.
@@ -72,6 +72,7 @@ const FILTERS: Record<string, string> = {
   big_screens: `(s.screens >= 4)`,
   low_no_alcohol: `(${INFO}->>'low_no_alcohol' = 'true' or s.low_no_alcohol)`,
   away_friendly: `(${AWAY_OK})`,
+  several_games: `(s.several_games)`,
 };
 // Sort by any scored category (best first), as well as stars or distance.
 const SORTABLE = new Set<string>([...SCORES, "food"]);
@@ -80,7 +81,8 @@ const SORTABLE = new Set<string>([...SCORES, "food"]);
 async function listPubs(req: Req): Promise<Res> {
   const lat = num(req.query.lat, "lat", -90, 90);
   const lng = num(req.query.lng, "lng", -180, 180);
-  const radius = num(req.query.radius_m, "radius_m", 100, 10000, 3000);
+  // 5 km by default: most fans in the survey would travel 20 minutes or more.
+  const radius = num(req.query.radius_m, "radius_m", 100, 10000, 5000);
   // Rated pubs first (by stars, then the unrounded score), then unrated pubs by distance.
   const sort = req.query.sort ?? "stars";
   const order =
@@ -171,7 +173,7 @@ async function listFixtures(req: Req): Promise<Res> {
 async function fixturePubs(id: number, req: Req): Promise<Res> {
   const lat = num(req.query.lat, "lat", -90, 90);
   const lng = num(req.query.lng, "lng", -180, 180);
-  const radius = num(req.query.radius_m, "radius_m", 100, 10000, 3000);
+  const radius = num(req.query.radius_m, "radius_m", 100, 10000, 5000);
   const f = await db().query(`select ${FIXTURE_COLS} from fixtures where id = $1`, [id]);
   if (!f.rows[0]) throw new HttpError(404, "Match not found");
   const fixture = f.rows[0];

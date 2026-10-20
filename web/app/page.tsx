@@ -16,17 +16,17 @@ type Centre = { lat: number; lng: number; label: string; areaId?: string };
 const AREA_CENTRES: Centre[] = AREAS.map((a) => ({ lat: a.lat, lng: a.lng, label: a.label, areaId: a.id }));
 const DEFAULT_CENTRE = AREA_CENTRES[0]!;
 
-const DEFAULTS = { radius: 3000, sort: "stars" as Sort, vibe: "" as Vibe | "" };
+// 5 km: most fans in the survey would travel 20 minutes or more for a good pub.
+const DEFAULTS = { radius: 5000, sort: "stars" as Sort, vibe: "" as Vibe | "" };
 const SORT_OPTIONS: [Sort, string][] = [
   ["stars", "Best for football"],
   ["distance", "Nearest"],
   ...SCORE_KEYS.map((k): [Sort, string] => [k, `Best ${SCORE_LABELS[k].label.toLowerCase()}`]),
-  ["food", "Best food"],
 ];
 const SORTS = new Set(SORT_OPTIONS.map(([v]) => v));
 const RADII = [1000, 3000, 5000, 10000];
 
-// All list settings live in the URL (/?area=reading&sort=food&has=beer_garden),
+// All list settings live in the URL (/?area=reading&sort=seating&has=beer_garden),
 // so Back, refresh and shared links keep them.
 export default function Home() {
   return (

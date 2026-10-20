@@ -20,7 +20,8 @@ export default function ReviewForm({ pubId, existing, defaultName, onSaved }: Pr
     for (const k of SCORE_KEYS) if (existing?.[k] != null) out[k] = existing[k]!;
     return out;
   });
-  const [food, setFood] = useState<number | null>(existing?.food ?? null);
+  // Food is no longer asked (the app is about the football); an old answer is kept as it was.
+  const food = existing?.food ?? null;
   const [vibe, setVibe] = useState<number | null>(existing?.vibe ?? null);
   const [facts, setFacts] = useState<Partial<Record<FactKey, boolean>>>(() => {
     // Carry over earlier answers so an update does not wipe them.
@@ -35,7 +36,7 @@ export default function ReviewForm({ pubId, existing, defaultName, onSaved }: Pr
   const [displayName, setDisplayName] = useState(existing?.display_name ?? defaultName ?? "");
   // Open the full form when updating a review that already has more than the quick scores.
   const [more, setMore] = useState(() =>
-    Boolean(existing && (EXTRA_KEYS.some((k) => existing[k] != null) || existing.vibe != null || existing.comment || existing.food != null)),
+    Boolean(existing && (EXTRA_KEYS.some((k) => existing[k] != null) || existing.vibe != null || existing.match_label)),
   );
   const [matchLabel, setMatchLabel] = useState(existing?.match_label ?? "");
   const [comment, setComment] = useState(existing?.comment ?? "");
@@ -96,18 +97,39 @@ export default function ReviewForm({ pubId, existing, defaultName, onSaved }: Pr
         </label>
       </div>
 
+      <label className="block text-sm">
+        <span className="font-medium">Your review (optional)</span>
+        <textarea
+          maxLength={500}
+          rows={3}
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="What was it like for the game? Value for money, music over the commentary, anything that spoiled it."
+          className="mt-1 w-full rounded border border-line px-3 py-2 text-base"
+        />
+      </label>
+
       {!more ? (
         <button type="button" onClick={() => setMore(true)} className="text-sm text-pitch underline">
-          Add more detail: seating, sound, bar, prices, food, vibe, channels
+          Add more detail: seating, sound, bar, prices, vibe, channels
         </button>
       ) : (
         <>
           <div className="space-y-3 border-t border-line pt-4">
             <p className="text-xs text-muted">All optional. Skip anything you did not notice.</p>
             {EXTRA_KEYS.map((k) => (
-              <Picker key={k} label={SCORE_LABELS[k].label} hint={SCORE_LABELS[k].hint} value={scores[k] ?? null} onChange={(v) => setScores((s) => ({ ...s, [k]: v ?? undefined }))} clearable />
+              <div key={k} className="space-y-2">
+                <Picker label={SCORE_LABELS[k].label} hint={SCORE_LABELS[k].hint} value={scores[k] ?? null} onChange={(v) => setScores((s) => ({ ...s, [k]: v ?? undefined }))} clearable />
+                {k === "seating" && (
+                  <YesNo label={FACT_LABELS.arrive_early} value={facts.arrive_early} onChange={(v) => setFacts((f) => {
+                    const next = { ...f };
+                    if (v === undefined) delete next.arrive_early;
+                    else next.arrive_early = v;
+                    return next;
+                  })} />
+                )}
+              </div>
             ))}
-            <Picker label={SCORE_LABELS.food.label} hint={SCORE_LABELS.food.hint} value={food} onChange={setFood} clearable />
           </div>
 
           <div className="space-y-2">
@@ -132,7 +154,7 @@ export default function ReviewForm({ pubId, existing, defaultName, onSaved }: Pr
 
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">What did you notice? Skip any you are not sure about.</legend>
-            {FACT_KEYS.map((k) => (
+            {FACT_KEYS.filter((k) => k !== "arrive_early").map((k) => (
               <div key={k} className="flex items-center justify-between gap-3 text-sm">
                 <span>{FACT_LABELS[k]}</span>
                 <span className="flex gap-1">
@@ -160,10 +182,6 @@ export default function ReviewForm({ pubId, existing, defaultName, onSaved }: Pr
           <label className="block text-sm">
             <span className="font-medium">Match you watched (optional)</span>
             <input maxLength={80} value={matchLabel} onChange={(e) => setMatchLabel(e.target.value)} className="mt-1 w-full rounded border border-line px-3 py-2 text-base" />
-          </label>
-          <label className="block text-sm">
-            <span className="font-medium">Comment (optional)</span>
-            <textarea maxLength={500} rows={3} value={comment} onChange={(e) => setComment(e.target.value)} className="mt-1 w-full rounded border border-line px-3 py-2 text-base" />
           </label>
         </>
       )}
@@ -197,6 +215,29 @@ function Picker(props: { label: string; hint: string; value: number | null; onCh
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+// A yes/no answer that can be left blank (tap again to clear).
+function YesNo(props: { label: string; value: boolean | undefined; onChange: (v: boolean | undefined) => void }) {
+  const { label, value, onChange } = props;
+  return (
+    <div className="flex items-center justify-between gap-3 text-sm">
+      <span className="text-muted">{label}?</span>
+      <span className="flex gap-1">
+        {([true, false] as const).map((v) => (
+          <button
+            key={String(v)}
+            type="button"
+            aria-pressed={value === v}
+            onClick={() => onChange(value === v ? undefined : v)}
+            className={`w-12 rounded border px-2 py-1 ${value === v ? "border-pitch bg-pitch text-white" : "border-line bg-chalk"}`}
+          >
+            {v ? "Yes" : "No"}
+          </button>
+        ))}
+      </span>
     </div>
   );
 }

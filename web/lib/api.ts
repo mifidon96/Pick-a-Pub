@@ -20,7 +20,7 @@ export const SCORE_LABELS: Record<ScoreKey | "food", { label: string; hint: stri
   screens: { label: "Screens", hint: "Size and picture quality" },
   crowd: { label: "Crowd", hint: "There to watch, not too packed" },
   seating: { label: "Seating", hint: "Chance of getting a seat" },
-  commentary: { label: "Commentary", hint: "Sound on and you could hear it" },
+  commentary: { label: "Commentary", hint: "Sound on and you could hear it (no music or band over it)" },
   service_speed: { label: "Bar service", hint: "How quick, e.g. at half time" },
   drink_prices: { label: "Drink prices", hint: "Value for money" },
   food: { label: "Food", hint: "Leave blank if you did not eat" },
@@ -29,7 +29,7 @@ export const SCORE_LABELS: Record<ScoreKey | "food", { label: string; hint: stri
 export const FACT_KEYS = [
   "shows_sky", "shows_tnt", "shows_amazon", "bookable",
   "outdoor_screen", "away_friendly", "family_friendly", "step_free",
-  "dog_friendly", "low_no_alcohol",
+  "dog_friendly", "low_no_alcohol", "several_games", "arrive_early",
 ] as const;
 export type FactKey = (typeof FACT_KEYS)[number];
 
@@ -44,6 +44,8 @@ export const FACT_LABELS: Record<FactKey, string> = {
   step_free: "Step-free access",
   dog_friendly: "Dog friendly",
   low_no_alcohol: "Good low/no alcohol options",
+  several_games: "Shows several games at once",
+  arrive_early: "Get there early for a seat",
 };
 
 type Scores = { [K in ScoreKey]: number | null } & { food: number | null };
@@ -129,10 +131,11 @@ export const FILTERS = {
   dog_friendly: "Dog friendly",
   low_no_alcohol: "Low/no alcohol",
   away_friendly: "Away fans welcome",
+  several_games: "Several games at once",
 } as const;
 export type Filter = keyof typeof FILTERS;
 
-export type Sort = "stars" | "distance" | ScoreKey | "food";
+export type Sort = "stars" | "distance" | ScoreKey;
 
 export function listPubs(opts: { lat: number; lng: number; radiusM: number; sort: Sort; vibe: Vibe | ""; has: Filter[]; fans?: string }) {
   const q = new URLSearchParams({ lat: String(opts.lat), lng: String(opts.lng), radius_m: String(opts.radiusM), sort: opts.sort });
@@ -239,7 +242,7 @@ export function listFixtures(opts: { days?: number; team?: string } = {}) {
   return request<{ fixtures: Fixture[] }>(`/fixtures?${q}`);
 }
 
-export function fixturePubs(id: number, lat: number, lng: number, radiusM: number) {
+export function fixturePubs(id: number, lat: number, lng: number, radiusM = 5000) {
   const q = new URLSearchParams({ lat: String(lat), lng: String(lng), radius_m: String(radiusM) });
   return request<{ fixture: Fixture; pubs: (Pub & { has_channel: boolean | null })[] }>(`/fixtures/${id}/pubs?${q}`);
 }

@@ -38,7 +38,7 @@ export function RatingBadge({ pub }: { pub: Pub }) {
 }
 
 export function ScoreBars({ pub }: { pub: Pub }) {
-  const rows = [...SCORE_KEYS, "food" as const];
+  const rows = SCORE_KEYS;
   return (
     <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
       {rows.map((k) => {
