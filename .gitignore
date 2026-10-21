@@ -17,3 +17,8 @@ pubs.json
 
 # Lambda zips built by Terraform
 infra/.build/
+
+# Lighthouse CI reports
+.lighthouseci/
+# Infracost output
+infracost-*.json

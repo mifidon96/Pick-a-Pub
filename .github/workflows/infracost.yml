@@ -1,0 +1,52 @@
+# Infracost: comments the monthly cost change on pull requests that touch infra/.
+# Reads the Terraform code only (no AWS access needed) and prices it with
+# Infracost's public price list. Needs a free API key from https://www.infracost.io
+# saved as the INFRACOST_API_KEY repo secret; without it the job does nothing.
+name: Infracost
+
+on:
+  pull_request:
+    paths: ["infra/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  cost:
+    name: Cost estimate (prod)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # post the cost comment
+    env:
+      INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+    steps:
+      - name: Check for the API key
+        id: key
+        run: |
+          if [[ -n "$INFRACOST_API_KEY" ]]; then echo "ok=true" >> "$GITHUB_OUTPUT"
+          else echo "::notice::INFRACOST_API_KEY is not set, so there is no cost estimate."; fi
+
+      - if: steps.key.outputs.ok == 'true'
+        uses: infracost/actions/setup@e9d6e6cd65e168e76b0de50ff9957d2fe8bb1832 # v3.0.1
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      # Price the main branch first, then this PR, and compare.
+      - if: steps.key.outputs.ok == 'true'
+        uses: actions/checkout@v7
+        with: { ref: "${{ github.event.pull_request.base.ref }}" }
+      - if: steps.key.outputs.ok == 'true'
+        run: |
+          infracost breakdown --path infra --terraform-var-file envs/prod.tfvars \
+            --format json --out-file /tmp/infracost-base.json
+
+      - if: steps.key.outputs.ok == 'true'
+        uses: actions/checkout@v7
+      - if: steps.key.outputs.ok == 'true'
+        run: |
+          infracost diff --path infra --terraform-var-file envs/prod.tfvars \
+            --compare-to /tmp/infracost-base.json --format json --out-file /tmp/infracost-diff.json
+          infracost comment github --path /tmp/infracost-diff.json \
+            --repo "${{ github.repository }}" --pull-request "${{ github.event.pull_request.number }}" \
+            --github-token "${{ github.token }}" --behavior update

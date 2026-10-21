@@ -63,6 +63,25 @@ jobs:
       - run: npm run lint
       - run: npm run build
         env: { NEXT_PUBLIC_API_URL: "https://api.example.invalid" }
+      # Lighthouse scores the built pages. Accessibility uses axe-core under the hood.
+      # Accessibility, best practices and SEO below 90 fail the build. Performance
+      # only warns: there is no real API here, so it under-scores pages that load data.
+      - name: Accessibility, SEO and performance (Lighthouse)
+        working-directory: .
+        run: |
+          rc=0; npx --yes @lhci/cli@0.15.1 autorun || rc=$? # write the scores even if it fails
+          jq -r '"### Lighthouse scores", "",
+            "| Page | Performance | Accessibility | Best practices | SEO |", "|---|---|---|---|---|",
+            (.[] | "| \(.url | sub("http://localhost:[0-9]+"; "")) | \(.summary.performance*100|round) | \(.summary.accessibility*100|round) | \(.summary["best-practices"]*100|round) | \(.summary.seo*100|round) |")' \
+            .lighthouseci/reports/manifest.json >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
+      - name: Keep the Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/reports
+          retention-days: 14
 
   secrets:
     name: Secret scan
