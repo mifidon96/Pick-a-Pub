@@ -1,21 +1,30 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { UserManager, WebStorageStateStore } from "oidc-client-ts";
+import { config } from "./config";
 
 // Two modes:
 //  - Local dev: NEXT_PUBLIC_DEV_USER is set, so every request carries x-dev-user.
-//  - Production: Cognito hosted sign-in. API Gateway checks the token.
+//  - Production: Cognito hosted sign-in. API Gateway checks the token. The pool
+//    comes from /config.js at runtime (see config.ts), not from the build.
 const DEV_USER = process.env.NEXT_PUBLIC_DEV_USER;
-const AUTHORITY = process.env.NEXT_PUBLIC_COGNITO_AUTHORITY;
-const CLIENT_ID = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID;
+
+// Sign-in works when the dev user is set or Cognito is configured.
+function signInConfigured(): boolean {
+  const c = config();
+  return Boolean(DEV_USER || (c.cognitoAuthority && c.cognitoClientId));
+}
+
+const noSubscribe = () => () => {};
 
 let mgr: UserManager | undefined;
 export function userManager(): UserManager | null {
-  if (typeof window === "undefined" || !AUTHORITY || !CLIENT_ID) return null;
+  const { cognitoAuthority, cognitoClientId } = config();
+  if (typeof window === "undefined" || !cognitoAuthority || !cognitoClientId) return null;
   mgr ??= new UserManager({
-    authority: AUTHORITY,
-    client_id: CLIENT_ID,
+    authority: cognitoAuthority,
+    client_id: cognitoClientId,
     redirect_uri: `${window.location.origin}/auth/callback/`,
     response_type: "code",
     // aws.cognito.signin.user.admin: lets "Delete my account" remove the sign-in itself.
@@ -37,7 +46,7 @@ type Auth = {
 
 // Cognito's own API, called from the browser with the user's access token.
 async function cognitoDeleteUser(accessToken: string) {
-  const region = /cognito-idp\.([a-z0-9-]+)\.amazonaws\.com/.exec(AUTHORITY ?? "")?.[1];
+  const region = /cognito-idp\.([a-z0-9-]+)\.amazonaws\.com/.exec(config().cognitoAuthority)?.[1];
   if (!region) throw new Error("Sign-in is not set up");
   const res = await fetch(`https://cognito-idp.${region}.amazonaws.com/`, {
     method: "POST",
@@ -57,16 +66,23 @@ const Ctx = createContext<Auth | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  // The pages are pre-built without the runtime config, so sign-in details are
+  // only read in the browser, after hydration. Before that (and in the pre-built
+  // HTML) auth counts as not ready, so the two always agree.
+  const inBrowser = useSyncExternalStore(noSubscribe, () => true, () => false);
+  const available = inBrowser && signInConfigured();
   // Nothing to load when using the dev user or when sign-in is not configured.
-  const [ready, setReady] = useState(Boolean(DEV_USER) || !(AUTHORITY && CLIENT_ID));
+  const needsLoad = inBrowser && !DEV_USER && Boolean(userManager());
+  const ready = inBrowser && (!needsLoad || loaded);
 
   useEffect(() => {
-    const m = DEV_USER ? null : userManager();
-    if (!m) return;
-    m.getUser()
+    if (!needsLoad) return;
+    userManager()!
+      .getUser()
       .then((u) => setToken(u && !u.expired ? (u.id_token ?? null) : null))
-      .finally(() => setReady(true));
-  }, []);
+      .finally(() => setLoaded(true));
+  }, [needsLoad]);
 
   const signIn = useCallback(() => {
     // Remember where to come back to after the hosted sign-in page.
@@ -96,13 +112,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return {
       ready,
       signedIn: Boolean(DEV_USER || token),
-      available: Boolean(DEV_USER || (AUTHORITY && CLIENT_ID)),
+      available,
       headers,
       signIn,
       signOut,
       deleteSignIn,
     };
-  }, [ready, token, signIn, signOut, deleteSignIn]);
+  }, [ready, available, token, signIn, signOut, deleteSignIn]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

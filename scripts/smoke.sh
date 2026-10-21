@@ -40,6 +40,8 @@ echo "API:  $API"
 check "Home page loads"            "$SITE/"                                      200 "Pick-a-Pub"
 check "Pub page loads"             "$SITE/pub/"                                  200
 check "PWA manifest is served"     "$SITE/manifest.json"                         200 "Pick-a-Pub"
+check "Settings point at this API"  "$SITE/config.js"                             200 "\"apiUrl\":\"$API\""
+check "Release version is recorded" "$SITE/version.json"                          200 '"commit"'
 check_header "Security headers: CSP"  "$SITE/" "content-security-policy"
 check_header "Security headers: HSTS" "$SITE/" "strict-transport-security"
 

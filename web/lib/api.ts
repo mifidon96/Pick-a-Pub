@@ -1,4 +1,5 @@
 import TEAMS_JSON from "./teams.json";
+import { apiUrl } from "./config";
 
 // Clubs and national teams, for "whose fans watch here".
 export type Team = { id: string; name: string };
@@ -9,7 +10,6 @@ export const teamName = (id: string | null | undefined) => (id ? TEAM_NAMES.get(
 // A quick review only needs these three (the most important to fans).
 export const QUICK_KEYS = ["sightlines", "screens", "crowd"] as const;
 
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/+$/, "");
 
 // Scored categories, in order of how much they count towards the stars.
 export const SCORE_KEYS = ["sightlines", "screens", "crowd", "seating", "commentary", "service_speed", "drink_prices"] as const;
@@ -118,7 +118,7 @@ export type ReviewInput = { [K in ScoreKey]: number | null } & Partial<Facts> & 
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, init);
+  const res = await fetch(`${apiUrl()}${path}`, init);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
   return data as T;
