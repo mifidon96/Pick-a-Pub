@@ -34,6 +34,7 @@ resource "aws_db_instance" "main" {
   backup_retention_period    = 7
   auto_minor_version_upgrade = true
   deletion_protection        = var.deletion_protection
+  copy_tags_to_snapshot      = true
   skip_final_snapshot        = !var.deletion_protection
   final_snapshot_identifier  = var.deletion_protection ? "${local.name}-final" : null
 }

@@ -24,12 +24,13 @@ jobs:
   checks:
     uses: ./.github/workflows/ci.yml
     secrets: inherit
-    # ci.yml's jobs ask for these (plan: id-token, secret scan: pull-requests).
-    # GitHub checks permissions up front, so they must be allowed here.
+    # ci.yml's jobs ask for these (plan: id-token and a PR comment, secret scan:
+    # pull-requests). GitHub checks permissions up front, so they must be allowed
+    # here, even though the plan job only runs on pull requests.
     permissions:
       contents: read
       id-token: write
-      pull-requests: read
+      pull-requests: write
 
   dev:
     needs: checks

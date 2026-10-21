@@ -37,3 +37,7 @@ jobs:
           [[ "${{ inputs.import_pubs }}" == "true" ]] || flags+=(--skip-pubs)
           ./scripts/deploy.sh "${flags[@]}"
           echo "site_url=$(terraform -chdir=infra output -raw site_url)" >> "$GITHUB_OUTPUT"
+          echo "api_url=$(terraform -chdir=infra output -raw api_url)" >> "$GITHUB_OUTPUT"
+      # If this fails on dev, the prod job never starts (deploy.yml: prod needs dev).
+      - name: Smoke tests
+        run: ./scripts/smoke.sh "${{ steps.deploy.outputs.site_url }}" "${{ steps.deploy.outputs.api_url }}"

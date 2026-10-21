@@ -1,0 +1,67 @@
+# Checkov scans the Terraform in infra/ on every pull request (ci.yml).
+# Any new finding fails the build. The checks below are switched off on purpose,
+# each with the reason. Revisit this list when the app has real traffic or money.
+directory:
+  - infra
+framework:
+  - terraform
+compact: true
+quiet: true
+skip-check:
+  # Known gap, to fix: the GitHub deploy roles use AdministratorAccess.
+  # Next step is a scoped policy built from what deploy.sh actually touches.
+  - CKV_AWS_274
+
+  # Public by design: pub search, pub pages and match listings need no sign-in.
+  # Routes that change data (reviews, photos, reports, /me) all use the Cognito JWT check.
+  - CKV_AWS_309
+
+  # Set per environment: deletion protection is on in prod (envs/prod.tfvars) and
+  # off in dev so it can be torn down. Checkov cannot read the tfvars.
+  - CKV_AWS_293
+
+  # The importer runs outside the VPC on purpose: it calls OpenStreetMap and
+  # football-data.org, and the VPC has no NAT gateway (about £30 a month).
+  - CKV_AWS_117
+
+  # No custom domain yet, so CloudFront uses its default certificate, where the TLS
+  # version cannot be set. With a domain, domain.tf sets TLSv1.2_2021.
+  - CKV_AWS_174
+
+  # Encryption with customer-managed KMS keys. Everything is already encrypted at
+  # rest with AWS-managed keys; a customer key adds cost and key management for no
+  # extra protection at this size.
+  - CKV_AWS_145 # S3
+  - CKV_AWS_158 # CloudWatch log groups
+  - CKV_AWS_26  # SNS
+  - CKV_AWS_173 # Lambda environment variables
+
+  # Cost: each of these adds a monthly charge that is not worth it before launch.
+  - CKV_AWS_157  # RDS Multi-AZ (doubles the database cost)
+  - CKV_AWS_68   # WAF on CloudFront (API Gateway throttling covers abuse for now)
+  - CKV2_AWS_47  # WAF Log4j rule (no WAF, and no Java)
+  - CKV_AWS_144  # S3 cross-region replication
+  - CKV_AWS_310  # CloudFront origin failover (needs a second bucket in another region)
+  - CKV_AWS_118  # RDS enhanced monitoring
+  - CKV_AWS_353  # RDS Performance Insights
+  - CKV_AWS_338  # Log retention of 1 year (30 days is enough to debug)
+
+  # Extra logging, left off for now to keep cost and noise down. CloudWatch Lambda
+  # logs and API Gateway metrics cover debugging and alarms.
+  - CKV2_AWS_11  # VPC flow logs
+  - CKV_AWS_18   # S3 access logs
+  - CKV_AWS_86   # CloudFront access logs
+  - CKV_AWS_76   # API Gateway access logs
+  - CKV_AWS_129  # RDS log exports
+  - CKV2_AWS_30  # RDS query logging
+
+  # Not relevant to this design.
+  - CKV_AWS_115  # Lambda reserved concurrency: new accounts have too little to reserve
+  - CKV_AWS_116  # Lambda dead letter queue: the API is called synchronously
+  - CKV_AWS_272  # Lambda code signing
+  - CKV_AWS_50   # X-Ray tracing
+  - CKV_AWS_374  # CloudFront geo restriction (UK app, but visitors travel)
+  - CKV_AWS_21   # S3 versioning on web (rebuilt from git) and photos (moderated, replaceable)
+  - CKV2_AWS_61  # Lifecycle rules on the web bucket (deploy.sh replaces it with --delete)
+  - CKV2_AWS_62  # S3 event notifications
+  - CKV_AWS_394  # Pinning availability zones (the subnets already use a fixed count of 2)

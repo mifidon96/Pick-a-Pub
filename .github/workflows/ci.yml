@@ -90,16 +90,45 @@ jobs:
       - run: terraform -chdir=infra/bootstrap init -backend=false -input=false
       - run: terraform -chdir=infra/bootstrap validate
 
+  tfscan:
+    name: Terraform lint and security scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # TFLint: mistakes validate misses (unused variables, values AWS would reject).
+      - name: TFLint
+        env:
+          TFLINT_VERSION: v0.62.0
+          GITHUB_TOKEN: ${{ github.token }} # avoids GitHub rate limits when fetching the AWS plugin
+        run: |
+          curl -sSL -o /tmp/tflint.zip \
+            "https://github.com/terraform-linters/tflint/releases/download/${TFLINT_VERSION}/tflint_linux_amd64.zip"
+          sudo unzip -qo /tmp/tflint.zip -d /usr/local/bin
+          tflint --init --config "$PWD/.tflint.hcl"
+          tflint --chdir=infra --config "$PWD/.tflint.hcl"
+          tflint --chdir=infra/bootstrap --config "$PWD/.tflint.hcl"
+      # Checkov: security misconfigurations. Accepted findings, with reasons, are in .checkov.yaml.
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.13" }
+      - name: Checkov
+        run: |
+          pip install --quiet checkov==3.3.30
+          checkov --config-file .checkov.yaml
+
   plan:
     name: Terraform plan (prod)
-    # Needs the AWS setup from scripts/bootstrap.sh. Pull requests from forks get
-    # no AWS access, so they skip this.
-    if: github.event_name == 'pull_request' && vars.AWS_ACCOUNT_ID != '' && github.event.pull_request.head.repo.full_name == github.repository
+    # Needs the AWS setup from scripts/bootstrap.sh. Pull requests from forks and
+    # Dependabot get no AWS access or secrets, so they skip this.
+    if: >-
+      github.event_name == 'pull_request' && vars.AWS_ACCOUNT_ID != '' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
     needs: terraform
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write # sign in to AWS with OIDC
+      pull-requests: write # post the plan summary as a comment
     env:
       TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
       TF_VAR_football_data_api_key: ${{ secrets.FOOTBALL_DATA_API_KEY }}
@@ -117,15 +146,41 @@ jobs:
           aws-region: eu-west-2
       - name: Plan
         run: |
+          set -o pipefail # without this, a failed plan piped into tee would still pass
           terraform -chdir=infra init -input=false \
             -backend-config="bucket=pickapub-tfstate-${{ vars.AWS_ACCOUNT_ID }}" \
             -backend-config="key=prod/terraform.tfstate"
           # Read-only role: it cannot take the state lock, and does not need to.
           terraform -chdir=infra plan -input=false -lock=false -no-color \
             -var-file=envs/prod.tfvars -out=tfplan | tee plan.txt
+
+          # Short summary for the PR: the totals and which resources change.
+          # The repo is public, so attribute values stay in the job log, not the comment.
           {
+            echo "<!-- terraform-plan -->"
             echo "### Terraform plan (prod)"
             echo '```'
             grep -E '^(Plan:|No changes)' plan.txt || echo "See the job log"
             echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+            terraform -chdir=infra show -json tfplan | jq -r '
+              [(.resource_changes // [])[] | select(.change.actions != ["no-op"] and .change.actions != ["read"])
+               | "| \(.change.actions | join(" then ")) | `\(.address)` |"] as $rows
+              | if ($rows | length) == 0 then empty
+                else "\n| Action | Resource |\n|---|---|", $rows[:50][], (if ($rows | length) > 50 then "\n...and \($rows | length - 50) more" else empty end)
+                end'
+            echo
+            echo "Full plan: [job log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          } > comment.md
+          cat comment.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Comment on the pull request
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const body = require("fs").readFileSync("comment.md", "utf8");
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            // Update the same comment on each push instead of adding a new one.
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const mine = comments.find((c) => c.user.type === "Bot" && c.body.includes("<!-- terraform-plan -->"));
+            if (mine) await github.rest.issues.updateComment({ owner, repo, comment_id: mine.id, body });
+            else await github.rest.issues.createComment({ owner, repo, issue_number, body });
