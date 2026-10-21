@@ -74,6 +74,10 @@ alter table reviews add column if not exists arrive_early  boolean;  -- get ther
 alter table reviews add column if not exists several_games boolean;  -- shows several games at once
 
 create index if not exists reviews_pub_idx on reviews (pub_id, updated_at desc);
+-- A user's own reviews: account export ("where user_id = $1 order by
+-- updated_at desc"), and deleting a user, which cascades here. The unique
+-- (pub_id, user_id) index starts with pub_id, so it cannot serve these.
+create index if not exists reviews_user_idx on reviews (user_id, updated_at desc);
 
 -- Quick review (feedback round 2): only sightlines, screens and crowd are
 -- required; the rest can be left blank. Blank categories count as the area
@@ -103,6 +107,8 @@ create table if not exists review_reports (
   primary key (review_id, user_id)
 );
 create index if not exists review_reports_open_idx on review_reports (review_id) where resolved_at is null;
+-- A user's own reports: account export and account deletion.
+create index if not exists review_reports_user_idx on review_reports (user_id, created_at desc);
 
 -- ---------------------------------------------------------------------------
 -- Star rating
@@ -287,6 +293,9 @@ create table if not exists pub_photos (
   reviewed_at  timestamptz
 );
 create index if not exists pub_photos_pub_idx on pub_photos (pub_id, status, created_at);
+-- The per-user upload limit (pending photos for this user, checked on every
+-- upload), account export, and deleting a user, which cascades here.
+create index if not exists pub_photos_user_idx on pub_photos (user_id, status);
 
 alter table pub_editorial add column if not exists photos jsonb not null default '[]'::jsonb;  -- filenames in content/photos/
 
