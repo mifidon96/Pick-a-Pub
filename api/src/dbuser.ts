@@ -1,10 +1,16 @@
 import { Client } from "pg";
+import { db } from "./db";
 
 // The app logs in to the database as APP_USER with IAM tokens (see db.ts).
 // This creates that user. It has to run as the master user, so deploy.sh passes
 // the master password in for this one call only; it is never stored in the
 // Lambda's settings. Safe to run on every deploy. On a new database the app
 // user then creates every table itself.
+//
+// Watch out: on RDS, any role that is a member of rds_iam, even indirectly, can
+// only log in with an IAM token. The master user briefly joins the app user's
+// role to hand its tables over, so it must leave again in the same session, or
+// its password stops working on the next deploy.
 export const APP_USER = "pickapub_app";
 
 export function setupSql(database: string): string {
@@ -21,7 +27,7 @@ begin
   if exists (select from pg_roles where rolname = 'rds_iam') then
     grant rds_iam to ${APP_USER};
   end if;
-  -- Lets the master user hand its tables over (below).
+  -- Lets the master user hand its tables over (below). Revoked at the end.
   execute format('grant ${APP_USER} to %I', current_user);
 end $$;
 grant connect, create on database "${database.replace(/"/g, "")}" to ${APP_USER};
@@ -38,12 +44,25 @@ begin
     execute format('alter %s public.%I owner to ${APP_USER}',
       case r.relkind when 'v' then 'view' else 'table' end, r.relname);
   end loop;
+  -- Leave the app user's role again. Staying in it would make the master user
+  -- an indirect member of rds_iam, which locks it to IAM logins only.
+  execute format('revoke ${APP_USER} from %I', current_user);
 end $$;
 `;
 }
 
-export async function setupAppUser(masterPassword: string): Promise<{ ok: true; user: string }> {
+export async function setupAppUser(masterPassword: string): Promise<{ ok: true; user: string; note?: string }> {
   if (!masterPassword) throw new Error("master password missing");
+  // Already set up? If the app user can log in with IAM, there is nothing to do,
+  // and the master login is not needed at all.
+  if (process.env.PGAUTH === "iam") {
+    try {
+      await db().query("select 1");
+      return { ok: true, user: APP_USER, note: "app user already set up" };
+    } catch {
+      // Not set up yet (a new database): carry on as the master user.
+    }
+  }
   const master = process.env.PGMASTERUSER ?? "pickapub";
   const client = new Client({
     host: process.env.PGHOST ?? "localhost",
