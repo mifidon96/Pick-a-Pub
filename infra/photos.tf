@@ -48,6 +48,12 @@ resource "aws_s3_bucket_lifecycle_configuration" "photos" {
       days = 14
     }
   }
+  rule {
+    id     = "abort-incomplete-uploads"
+    status = "Enabled"
+    filter {}
+    abort_incomplete_multipart_upload { days_after_initiation = 1 }
+  }
 }
 
 data "aws_iam_policy_document" "photos_bucket" {

@@ -14,6 +14,13 @@ resource "aws_vpc" "main" {
   tags = { Name = local.name }
 }
 
+# Every VPC comes with a default security group that allows all traffic between
+# its members. Nothing uses it here, so take over management and remove all rules.
+resource "aws_default_security_group" "default" {
+  vpc_id = aws_vpc.main.id
+  tags   = { Name = "${local.name}-default-unused" }
+}
+
 resource "aws_subnet" "private" {
   count = 2
 
@@ -41,6 +48,7 @@ resource "aws_security_group" "db" {
 }
 
 resource "aws_vpc_security_group_egress_rule" "lambda_to_db" {
+  description                  = "Lambdas to Postgres"
   security_group_id            = aws_security_group.lambda.id
   referenced_security_group_id = aws_security_group.db.id
   ip_protocol                  = "tcp"
@@ -60,6 +68,7 @@ resource "aws_vpc_endpoint" "s3" {
 }
 
 resource "aws_vpc_security_group_egress_rule" "lambda_to_s3" {
+  description       = "Lambdas to S3 through the gateway endpoint"
   security_group_id = aws_security_group.lambda.id
   prefix_list_id    = aws_vpc_endpoint.s3.prefix_list_id
   ip_protocol       = "tcp"
@@ -68,6 +77,7 @@ resource "aws_vpc_security_group_egress_rule" "lambda_to_s3" {
 }
 
 resource "aws_vpc_security_group_ingress_rule" "db_from_lambda" {
+  description                  = "Postgres from the Lambdas only"
   security_group_id            = aws_security_group.db.id
   referenced_security_group_id = aws_security_group.lambda.id
   ip_protocol                  = "tcp"
