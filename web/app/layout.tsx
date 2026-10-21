@@ -5,8 +5,11 @@ import Header from "@/components/Header";
 import AppInstall from "@/components/AppInstall";
 import PageCount from "@/components/PageCount";
 import Link from "next/link";
+import Script from "next/script";
 
-// The live address, set by scripts/deploy.sh, so share previews get full URLs.
+// The live address, so share previews get full URLs. Release builds use a
+// placeholder here (scripts/build-release.sh) that deploy.sh swaps for each
+// environment's address, so one build serves dev and prod.
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 const DESCRIPTION = "Find a pub to watch the match. Pubs near you rated by football fans on the view of the screen, sound, crowd and seats.";
 
@@ -34,6 +37,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en-GB" className="h-full antialiased">
       <body className="flex min-h-full flex-col font-sans">
+        {/* This environment's settings (API address, sign-in). Loads before the app. */}
+        <Script src="/config.js" strategy="beforeInteractive" />
         <AuthProvider>
           <Header />
           <AppInstall />

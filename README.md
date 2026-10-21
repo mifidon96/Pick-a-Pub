@@ -245,12 +245,26 @@ AWS_PROFILE=personal ./scripts/deploy.sh --env prod
 
 It shows the account and environment and asks before doing anything. It then:
 
-1. builds the API and runs `terraform apply` (Terraform shows the plan and asks again)
+1. builds the release (`scripts/build-release.sh`) and runs `terraform apply` (Terraform shows the plan and asks again)
 2. creates or updates the database tables
 3. imports pubs from OpenStreetMap (`--skip-pubs` skips this, except on an empty database)
 4. copies Wikimedia photos, uploads `content/photos/` and applies `content/pubs.yaml`
-5. builds the site with the live API and sign-in settings, uploads it and clears the CloudFront cache
+5. adds this environment's settings to the site (`config.js`: API and sign-in; the site address), uploads it and clears the CloudFront cache
 6. prints the site and dashboard URLs
+
+### Build once, promote
+
+GitHub Actions builds the release once per merge (the "Build release" job) and
+deploys that exact build to dev, then prod (`deploy.sh --prebuilt`). Nothing
+environment-specific is baked into the build:
+
+- the API address and Cognito pool are read at runtime from `/config.js`, which
+  `deploy.sh` writes for each environment (`web/lib/config.ts`)
+- the site address in share previews is a placeholder that `deploy.sh` replaces
+- `/version.json` records the commit, so you can check which build an environment runs
+
+After each deploy, `scripts/smoke.sh` checks the site, its headers and settings,
+and the API. If dev fails, prod is never deployed.
 
 ### Monitoring
 
@@ -298,7 +312,7 @@ or the browser will block it.
 - **Titles and descriptions** for every page; pub and match pages set theirs once loaded
   (e.g. "The Bedford: football rating"). `web/lib/pageInfo.ts`.
 - **Share preview**: `web/public/og.png` shows in WhatsApp, iMessage and social links.
-  Shared links use the live address via `NEXT_PUBLIC_SITE_URL`, set by `deploy.sh`.
+  Shared links use the live address, which `deploy.sh` puts in for each environment.
 - **sitemap.xml and robots.txt** are written by `scripts/sitemap.mjs` on every deploy,
   listing the featured areas and their pubs.
 - **Page counts without cookies** (so no cookie banner): each page view records the page,

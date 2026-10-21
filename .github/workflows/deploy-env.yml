@@ -1,4 +1,5 @@
-# Deploys one environment with scripts/deploy.sh. Called by deploy.yml.
+# Deploys the release built in deploy.yml to one environment with
+# scripts/deploy.sh --prebuilt. Called by deploy.yml.
 name: Deploy environment
 
 on:
@@ -23,6 +24,9 @@ jobs:
       TF_VAR_football_data_api_key: ${{ secrets.FOOTBALL_DATA_API_KEY }}
     steps:
       - uses: actions/checkout@v7
+      # The release built once in deploy.yml (api/dist and web/out).
+      - uses: actions/download-artifact@v5
+        with: { name: release }
       - uses: actions/setup-node@v7
         with: { node-version: 22 }
       - uses: hashicorp/setup-terraform@v4
@@ -33,7 +37,7 @@ jobs:
           aws-region: eu-west-2
       - id: deploy
         run: |
-          flags=(--env "${{ inputs.environment }}" --yes)
+          flags=(--env "${{ inputs.environment }}" --yes --prebuilt)
           [[ "${{ inputs.import_pubs }}" == "true" ]] || flags+=(--skip-pubs)
           ./scripts/deploy.sh "${flags[@]}"
           echo "site_url=$(terraform -chdir=infra output -raw site_url)" >> "$GITHUB_OUTPUT"

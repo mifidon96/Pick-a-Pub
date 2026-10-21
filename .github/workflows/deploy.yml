@@ -1,5 +1,5 @@
-# Every merge to main: run the checks, deploy to dev, then wait for approval
-# before deploying the same commit to prod.
+# Every merge to main: run the checks, build the release once, deploy it to dev,
+# then wait for approval before deploying that same build to prod.
 name: Deploy
 
 on:
@@ -32,8 +32,29 @@ jobs:
       id-token: write
       pull-requests: write
 
-  dev:
+  # Build once, promote: the API bundles and website are built here, once, and
+  # dev and prod both deploy this exact build. Only the settings differ, and
+  # deploy.sh adds those at deploy time (web/lib/config.ts).
+  build:
+    name: Build release
     needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: 22 }
+      - run: ./scripts/build-release.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: |
+            api/dist
+            web/out
+          if-no-files-found: error
+          retention-days: 30
+
+  dev:
+    needs: build
     if: vars.AWS_ACCOUNT_ID != ''
     uses: ./.github/workflows/deploy-env.yml
     with:
