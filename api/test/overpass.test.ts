@@ -35,4 +35,29 @@ assert.deepEqual(f.seen, ["a.example"]);
 // Network error counts as unavailable
 const net = (async (url: string) => { if (url.includes("a.example")) throw new Error("ECONNRESET"); return new Response(JSON.stringify({ elements: [] })); }) as unknown as typeof fetch;
 assert.deepEqual(await overpass("q", { fetchFn: net, servers, waitMs: 0, log: quiet }), []);
+// Deadline: a slow first server uses up the time, so it gives up cleanly
+// instead of running past the Lambda's own timeout.
+let clock = 0;
+const slow = (async (url: string) => {
+  clock += 46_000; // as if the request waited until it was cut off
+  if (url.includes("a.example")) { const e = new Error("timed out"); e.name = "TimeoutError"; throw e; }
+  return new Response(JSON.stringify({ elements: [] }));
+}) as unknown as typeof fetch;
+await assert.rejects(
+  overpass("q", { fetchFn: slow, servers, waitMs: 0, log: quiet, deadline: 60_000, now: () => clock }),
+  /too slow/,
+  "gives up when under 15 s are left",
+);
+
+// No time at all: no request is made
+let calls = 0;
+const counting = (async () => { calls++; return new Response("{}"); }) as unknown as typeof fetch;
+await assert.rejects(overpass("q", { fetchFn: counting, servers, waitMs: 0, log: quiet, deadline: 10_000, now: () => 0 }), /too slow/);
+assert.equal(calls, 0);
+
+// Each request is limited to what is left before the deadline
+let signalOk = false;
+const check = (async (_url: string, init: RequestInit) => { signalOk = init.signal instanceof AbortSignal; return new Response(JSON.stringify({ elements: [] })); }) as unknown as typeof fetch;
+await overpass("q", { fetchFn: check, servers, waitMs: 0, log: quiet, deadline: 30_000, now: () => 0 });
+assert.ok(signalOk);
 console.log("overpass tests passed");

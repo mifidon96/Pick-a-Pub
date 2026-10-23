@@ -73,14 +73,19 @@ function readPoint(lat: unknown, lng: unknown): { lat: number; lng: number } | n
   return { lat: la, lng: lo };
 }
 
-export function fetchPubs(lat: number, lng: number, radius: number): Promise<OsmElement[]> {
+// The Lambda times out at 120 s (infra/importer.tf). OpenStreetMap gets at most
+// 75 s of that, which leaves time to save the pubs and copy their photos.
+const OVERPASS_BUDGET_MS = 75_000;
+
+export function fetchPubs(lat: number, lng: number, radius: number, deadline = Infinity): Promise<OsmElement[]> {
   return overpass(`[out:json][timeout:50];
 nwr[amenity~"^(pub|bar)$"][name](around:${radius},${lat},${lng});
-out center tags;`, { waitMs: 5_000 });
+out center tags;`, { waitMs: 5_000, deadline });
 }
 
 async function runWorker(w: Worker) {
-  const elements = (await fetchPubs(w.lat, w.lng, TILE_IMPORT_RADIUS_M)).filter((e) => {
+  const deadline = Date.now() + OVERPASS_BUDGET_MS;
+  const elements = (await fetchPubs(w.lat, w.lng, TILE_IMPORT_RADIUS_M, deadline)).filter((e) => {
     const p = osmToPub(e);
     return p.name && Number.isFinite(p.lat) && Number.isFinite(p.lng);
   });
@@ -121,6 +126,12 @@ export async function handler(event: APIGatewayProxyEventV2 | Worker | CopyJob |
     const status = await invokeAdmin<{ fresh: boolean }>({ action: "tile_status", tile: t.tile });
     if (status.fresh) return json(200, { status: "ready" });
     if (method === "GET") return json(200, { status: "importing" });
+
+    // Only one import per tile at a time: a second search for the same area
+    // (another visitor, or a page reload) waits for the first one instead of
+    // asking OpenStreetMap again.
+    const claim = await invokeAdmin<{ claimed: boolean }>({ action: "claim_tile", tile: t.tile });
+    if (!claim.claimed) return json(202, { status: "importing" });
 
     // Start the import in the background and answer straight away.
     await lambda.send(new InvokeCommand({

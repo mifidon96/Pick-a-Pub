@@ -42,6 +42,17 @@ assert.equal(asyncCalls.length, 1, "worker started in the background");
 const worker = asyncCalls[0] as { tile: string };
 assert.equal(worker.tile, t.tile);
 
+// A second search of the same area while it imports does not start another import
+r = await api("POST", "/areas/import", { body: cardiff });
+assert.equal(JSON.parse(r.body).status, "importing");
+assert.equal(asyncCalls.length, 1, "one import per tile at a time");
+
+// A claim left by a failed import is taken again after 5 minutes
+await db().query("update import_tiles set started_at = now() - interval '10 minutes' where tile = $1", [t.tile]);
+r = await api("POST", "/areas/import", { body: cardiff });
+assert.equal(asyncCalls.length, 2, "stale claim retried");
+asyncCalls.pop();
+
 const result = await handler(worker as never) as { upserted: number };
 assert.equal(result.upserted, 2, "two named pubs imported");
 
