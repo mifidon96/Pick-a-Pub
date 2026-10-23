@@ -16,6 +16,7 @@ export type AdminEvent =
   | { action: "pub_count" }
   | { action: "import_pubs"; pubs: PubInput[]; tile?: string }
   | { action: "tile_status"; tile: string }
+  | { action: "claim_tile"; tile: string }
   | { action: "list_photos_to_copy"; limit?: number }
   | { action: "set_photo_copies"; results: { id: number; key?: string; gone?: boolean }[] }
   | { action: "list_pending_photos" }
@@ -100,8 +101,8 @@ export async function runAdmin(event: AdminEvent): Promise<unknown> {
     }
     if (event.tile) {
       await db().query(
-        `insert into import_tiles (tile, imported_at, pub_count) values ($1, now(), $2)
-         on conflict (tile) do update set imported_at = now(), pub_count = excluded.pub_count`,
+        `insert into import_tiles (tile, imported_at, pub_count, started_at) values ($1, now(), $2, null)
+         on conflict (tile) do update set imported_at = now(), pub_count = excluded.pub_count, started_at = null`,
         [event.tile, upserted],
       );
     }
@@ -114,6 +115,19 @@ export async function runAdmin(event: AdminEvent): Promise<unknown> {
   if (event.action === "pub_count") {
     const { rows } = await db().query("select count(*)::int as n from pubs");
     return { pubs: rows[0].n };
+  }
+
+  // Marks a tile as being imported. Only one caller gets claimed: true; a claim
+  // older than 5 minutes (a failed import) can be taken again.
+  if (event.action === "claim_tile") {
+    const { rows } = await db().query(
+      `insert into import_tiles (tile, imported_at, pub_count, started_at) values ($1, '-infinity', 0, now())
+       on conflict (tile) do update set started_at = now()
+         where import_tiles.started_at is null or import_tiles.started_at < now() - interval '5 minutes'
+       returning tile`,
+      [event.tile],
+    );
+    return { claimed: rows.length === 1 };
   }
 
   if (event.action === "tile_status") {

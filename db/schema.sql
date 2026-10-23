@@ -279,6 +279,9 @@ create table if not exists import_tiles (
   imported_at  timestamptz not null default now(),
   pub_count    integer not null default 0
 );
+-- Set while an import is running, so two searches of the same new area start
+-- one import, not two. A tile never imported yet has imported_at = -infinity.
+alter table import_tiles add column if not exists started_at timestamptz;
 
 -- ---------------------------------------------------------------------------
 -- Photos. Uploaded photos stay pending until approved (scripts/photos.sh).
