@@ -277,12 +277,12 @@ link the first time; click it or no alarms arrive.
 
 Off until you set it. To switch on:
 
-1. Buy a domain in Route 53 (Domains > Register), e.g. `pickapub.co.uk`. Route 53
+1. Buy a domain in Route 53 (Domains > Register), e.g. `pickapub.com`. Route 53
    creates the hosted zone for you. (Bought elsewhere? Create a hosted zone in
    Route 53 and point the domain's name servers at it.)
-2. In `infra/envs/prod.tfvars` set `domain_name = "pickapub.co.uk"`, and in
-   `infra/envs/dev.tfvars` set `domain_name = "dev.pickapub.co.uk"` and
-   `hosted_zone_name = "pickapub.co.uk"`. Merge to main.
+2. In `infra/envs/prod.tfvars` set `domain_name = "pickapub.com"`, and in
+   `infra/envs/dev.tfvars` set `domain_name = "dev.pickapub.com"` and
+   `hosted_zone_name = "pickapub.com"`. Merge to main.
    Terraform creates the certificate, DNS records, and verifies the domain for
    email (DKIM and DMARC).
 3. SES > Account dashboard > Request production access (use case: sign-up codes
