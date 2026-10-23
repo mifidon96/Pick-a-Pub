@@ -53,7 +53,7 @@ variable "extra_origins" {
 }
 
 variable "domain_name" {
-  description = "Custom domain for the site, e.g. pickapub.co.uk (prod) or dev.pickapub.co.uk. Empty = the cloudfront.net address."
+  description = "Custom domain for the site, e.g. pickapub.com (prod) or dev.pickapub.com. Empty = the cloudfront.net address."
   type        = string
   default     = ""
 }
