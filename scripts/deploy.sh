@@ -198,7 +198,11 @@ aws cloudfront create-invalidation --distribution-id "$(tf_out cloudfront_distri
   --paths '/*' --query Invalidation.Id --output text >/dev/null
 
 step "Checking the API"
-curl -fsS "$(tf_out api_url)/pubs?lat=51.4431&lng=-0.1525" | head -c 300; echo
+# Read the whole response first, then print the start of it. Piping curl into
+# head made curl fail (exit 23) whenever head closed the pipe early, which with
+# pipefail failed the deploy once the response grew past head's 300 bytes.
+response="$(curl -fsS "$(tf_out api_url)/pubs?lat=51.4431&lng=-0.1525")" || fail "the API did not answer"
+echo "${response:0:300}"
 
 step "Done"
 echo "Site ($ENV): $(tf_out site_url)"
