@@ -118,17 +118,53 @@ resource "aws_cloudwatch_metric_alarm" "db_storage" {
   ok_actions          = local.alarm_actions
 }
 
+# A db.t4g.micro has 1 GB of memory and Postgres keeps most of it as cache on
+# purpose, so free memory normally sits around 100 MB. The old 100 MB threshold
+# flapped all night on dev. Under 32 MB for 15 minutes is real pressure.
 resource "aws_cloudwatch_metric_alarm" "db_memory" {
   alarm_name          = "${local.name}-db-memory"
-  alarm_description   = "Database has less than 100 MB of free memory for 15 minutes."
+  alarm_description   = "Database has less than 32 MB of free memory for 15 minutes."
   namespace           = "AWS/RDS"
   metric_name         = "FreeableMemory"
   dimensions          = { DBInstanceIdentifier = aws_db_instance.main.identifier }
   statistic           = "Average"
   period              = 300
   evaluation_periods  = 3
-  threshold           = 100 * 1024 * 1024
+  threshold           = 32 * 1024 * 1024
   comparison_operator = "LessThanThreshold"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+}
+
+# Swapping is the clearer sign that the database is short of memory.
+resource "aws_cloudwatch_metric_alarm" "db_swap" {
+  alarm_name          = "${local.name}-db-swap"
+  alarm_description   = "Database is using more than 50 MB of swap for 15 minutes: it is short of memory."
+  namespace           = "AWS/RDS"
+  metric_name         = "SwapUsage"
+  dimensions          = { DBInstanceIdentifier = aws_db_instance.main.identifier }
+  statistic           = "Average"
+  period              = 300
+  evaluation_periods  = 3
+  threshold           = 50 * 1024 * 1024
+  comparison_operator = "GreaterThanThreshold"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+}
+
+# A db.t4g.micro allows roughly 80 to 100 connections. Each warm Lambda holds up
+# to 2, so this is the first limit a traffic spike hits.
+resource "aws_cloudwatch_metric_alarm" "db_connections" {
+  alarm_name          = "${local.name}-db-connections"
+  alarm_description   = "More than 60 database connections for 10 minutes: close to the limit for this instance size."
+  namespace           = "AWS/RDS"
+  metric_name         = "DatabaseConnections"
+  dimensions          = { DBInstanceIdentifier = aws_db_instance.main.identifier }
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 2
+  threshold           = 60
+  comparison_operator = "GreaterThanThreshold"
   alarm_actions       = local.alarm_actions
   ok_actions          = local.alarm_actions
 }
@@ -226,6 +262,8 @@ resource "aws_cloudwatch_dashboard" "main" {
               aws_cloudwatch_metric_alarm.db_cpu.arn,
               aws_cloudwatch_metric_alarm.db_storage.arn,
               aws_cloudwatch_metric_alarm.db_memory.arn,
+              aws_cloudwatch_metric_alarm.db_swap.arn,
+              aws_cloudwatch_metric_alarm.db_connections.arn,
             ],
           )
         }
