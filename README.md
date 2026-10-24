@@ -270,7 +270,7 @@ and the API. If dev fails, prod is never deployed.
 
 Each environment has a CloudWatch dashboard (URL printed by the deploy) and
 alarms emailed to `ALERT_EMAIL`: Lambda errors, API throttles, API 5xx, slow API
-(p95 over 3 s), and database CPU, memory and storage. AWS emails a confirmation
+(p95 over 3 s), and database CPU, memory (under 32 MB free), swap, connections (over 60) and storage. AWS emails a confirmation
 link the first time; click it or no alarms arrive.
 
 ### Custom domain and email
