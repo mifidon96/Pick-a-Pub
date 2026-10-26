@@ -28,7 +28,7 @@ jobs:
           else echo "::notice::INFRACOST_API_KEY is not set, so there is no cost estimate."; fi
 
       - if: steps.key.outputs.ok == 'true'
-        uses: infracost/actions/setup@e9d6e6cd65e168e76b0de50ff9957d2fe8bb1832 # v3.0.1
+        uses: infracost/actions/setup@a5783eb98adc93aa7a0049fce0abb06fdd30770a # v5.0.1
         with:
           api-key: ${{ secrets.INFRACOST_API_KEY }}
 
