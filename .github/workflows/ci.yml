@@ -77,7 +77,7 @@ jobs:
           exit $rc
       - name: Keep the Lighthouse reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lighthouse-reports
           path: .lighthouseci/reports
@@ -127,7 +127,7 @@ jobs:
           tflint --chdir=infra --config "$PWD/.tflint.hcl"
           tflint --chdir=infra/bootstrap --config "$PWD/.tflint.hcl"
       # Checkov: security misconfigurations. Accepted findings, with reasons, are in .checkov.yaml.
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with: { python-version: "3.13" }
       - name: Checkov
         run: |
@@ -192,7 +192,7 @@ jobs:
           } > comment.md
           cat comment.md >> "$GITHUB_STEP_SUMMARY"
       - name: Comment on the pull request
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const body = require("fs").readFileSync("comment.md", "utf8");
