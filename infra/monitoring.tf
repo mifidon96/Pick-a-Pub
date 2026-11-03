@@ -14,8 +14,8 @@ resource "aws_sns_topic_subscription" "email" {
 
 locals {
   functions = {
-    api      = aws_lambda_function.api.function_name
-    admin    = aws_lambda_function.admin.function_name
+    api      = aws_lambda_function.app["api"].function_name
+    admin    = aws_lambda_function.app["admin"].function_name
     importer = aws_lambda_function.importer.function_name
   }
   alarm_actions = [aws_sns_topic.alerts.arn]
@@ -45,7 +45,7 @@ resource "aws_cloudwatch_metric_alarm" "api_throttles" {
   alarm_description   = "The API Lambda is being throttled: requests are failing."
   namespace           = "AWS/Lambda"
   metric_name         = "Throttles"
-  dimensions          = { FunctionName = aws_lambda_function.api.function_name }
+  dimensions          = { FunctionName = aws_lambda_function.app["api"].function_name }
   statistic           = "Sum"
   period              = 300
   evaluation_periods  = 1

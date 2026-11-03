@@ -1,6 +1,7 @@
-# "Search anywhere" importer. Outside the VPC so it can reach OpenStreetMap
-# without a NAT gateway. It has no database access: it hands pubs to the admin
-# Lambda, which is inside the VPC.
+# "Search anywhere" importer, plus the 6-hourly match listings refresh. Outside
+# the VPC so it can reach OpenStreetMap and football-data.org without a NAT
+# gateway. It has no database access: it hands data to the admin Lambda, which
+# is inside the VPC.
 
 data "archive_file" "importer" {
   type        = "zip"
@@ -22,7 +23,7 @@ data "aws_iam_policy_document" "importer" {
   statement {
     actions = ["lambda:InvokeFunction"]
     resources = [
-      aws_lambda_function.admin.arn,
+      aws_lambda_function.app["admin"].arn,
       # Itself, to run the import in the background. Built from the name to avoid a cycle.
       "arn:aws:lambda:${var.region}:${data.aws_caller_identity.current.account_id}:function:${local.name}-importer",
     ]
@@ -49,8 +50,6 @@ resource "aws_iam_role_policy" "importer" {
   policy = data.aws_iam_policy_document.importer.json
 }
 
-data "aws_caller_identity" "current" {}
-
 resource "aws_cloudwatch_log_group" "importer" {
   name              = "/aws/lambda/${local.name}-importer"
   retention_in_days = 14
@@ -69,7 +68,7 @@ resource "aws_lambda_function" "importer" {
 
   environment {
     variables = {
-      ADMIN_FUNCTION        = aws_lambda_function.admin.function_name
+      ADMIN_FUNCTION        = aws_lambda_function.app["admin"].function_name
       PHOTOS_BUCKET         = aws_s3_bucket.photos.bucket
       FOOTBALL_DATA_API_KEY = var.football_data_api_key
     }
@@ -78,32 +77,7 @@ resource "aws_lambda_function" "importer" {
   depends_on = [aws_cloudwatch_log_group.importer, aws_iam_role_policy_attachment.importer_logs]
 }
 
-resource "aws_apigatewayv2_integration" "importer" {
-  api_id                 = aws_apigatewayv2_api.main.id
-  integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.importer.invoke_arn
-  payload_format_version = "2.0"
-}
-
-resource "aws_apigatewayv2_route" "import_area" {
-  api_id    = aws_apigatewayv2_api.main.id
-  route_key = "POST /areas/import"
-  target    = "integrations/${aws_apigatewayv2_integration.importer.id}"
-}
-
-resource "aws_apigatewayv2_route" "area_status" {
-  api_id    = aws_apigatewayv2_api.main.id
-  route_key = "GET /areas/status"
-  target    = "integrations/${aws_apigatewayv2_integration.importer.id}"
-}
-
-resource "aws_lambda_permission" "apigw_importer" {
-  statement_id  = "AllowApiGateway"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.importer.function_name
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*"
-}
+# Its routes (POST /areas/import, GET /areas/status) are in api_gateway.tf.
 
 # "Where's it showing?": refresh upcoming matches every 6 hours.
 locals {

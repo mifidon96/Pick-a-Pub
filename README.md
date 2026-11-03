@@ -266,6 +266,31 @@ environment-specific is baked into the build:
 After each deploy, `scripts/smoke.sh` checks the site, its headers and settings,
 and the API. If dev fails, prod is never deployed.
 
+### Terraform layout
+
+One file per part of the system, in `infra/`:
+
+| File | What it holds |
+|---|---|
+| `versions.tf` | Terraform and provider versions, the S3 state backend, default tags |
+| `variables.tf`, `envs/*.tfvars` | Settings, and their dev and prod values |
+| `locals.tf` | Shared values: the name prefix, the site address, allowed origins |
+| `network.tf` | Private VPC, subnets, security groups, S3 gateway endpoint (no NAT) |
+| `database.tf` | RDS Postgres with IAM login |
+| `lambda.tf` | The API and admin Lambdas (one bundle, two entry points) and their role |
+| `api_gateway.tf` | The HTTP API, **the route table** (every endpoint and whether sign-in is needed), throttling |
+| `importer.tf` | The importer Lambda (outside the VPC) and the 6-hourly fixtures schedule |
+| `auth.tf` | Cognito user pool and sign-in client |
+| `web.tf` | Website bucket, CloudFront, security headers |
+| `photos.tf` | Photos bucket and who may read or write it |
+| `domain.tf` | Custom domain: certificate, DNS records, SES email identity |
+| `monitoring.tf` | Alarms, email alerts and the dashboard |
+| `outputs.tf` | Values deploy.sh reads after an apply |
+| `moved.tf` | Old resource names mapped to new ones (temporary, from a refactor) |
+
+`infra/bootstrap/` is separate: run once per AWS account for the state bucket,
+GitHub sign-in roles and budget.
+
 ### Monitoring
 
 Each environment has a CloudWatch dashboard (URL printed by the deploy) and

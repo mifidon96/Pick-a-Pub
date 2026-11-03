@@ -37,8 +37,3 @@ provider "aws" {
     }
   }
 }
-
-locals {
-  # Every resource name starts with this, e.g. pickapub-prod-api.
-  name = "${var.project}-${var.environment}"
-}
