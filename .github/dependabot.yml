@@ -1,6 +1,8 @@
 # Weekly pull requests to keep dependencies up to date. Small updates are
-# grouped into one PR per folder so there are only a few to review; CI runs on
-# each, so merge when it is green.
+# grouped into one PR per folder. Minor and patch updates to npm packages and
+# Terraform providers merge themselves once CI is green
+# (workflows/dependabot-automerge.yml); major updates and GitHub Actions
+# updates wait for review.
 version: 2
 updates:
   - package-ecosystem: npm
