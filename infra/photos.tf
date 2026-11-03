@@ -29,7 +29,7 @@ resource "aws_s3_bucket_cors_configuration" "photos" {
   bucket = aws_s3_bucket.photos.id
   cors_rule {
     allowed_methods = ["POST"]
-    allowed_origins = concat([local.site_url, "http://localhost:3000"], var.extra_origins)
+    allowed_origins = local.allowed_origins
     allowed_headers = ["*"]
     max_age_seconds = 3600
   }

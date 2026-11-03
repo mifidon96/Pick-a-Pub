@@ -59,8 +59,5 @@ resource "aws_cognito_user_pool_client" "web" {
   allowed_oauth_scopes         = ["openid", "email", "aws.cognito.signin.user.admin"]
   supported_identity_providers = ["COGNITO"]
 
-  callback_urls = concat(
-    ["${local.site_url}/auth/callback/", "http://localhost:3000/auth/callback/"],
-    var.extra_callback_urls,
-  )
+  callback_urls = [for origin in local.allowed_origins : "${origin}/auth/callback/"]
 }

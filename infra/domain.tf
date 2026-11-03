@@ -6,12 +6,6 @@
 #   2. Set domain_name in infra/envs/<env>.tfvars and deploy.
 #   3. Once SES has granted production access, set use_ses_email = true and deploy.
 
-locals {
-  custom_domain = var.domain_name != ""
-  zone_name     = var.hosted_zone_name != "" ? var.hosted_zone_name : var.domain_name
-  site_url      = local.custom_domain ? "https://${var.domain_name}" : "https://${aws_cloudfront_distribution.web.domain_name}"
-}
-
 # CloudFront only accepts certificates from us-east-1.
 provider "aws" {
   alias  = "us_east_1"
