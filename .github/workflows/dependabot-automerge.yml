@@ -1,0 +1,47 @@
+# Turns on auto-merge for Dependabot's minor and patch updates. GitHub then
+# squash-merges the PR by itself once every required check on main has passed.
+# Major updates, and all GitHub Actions updates, still wait for a person.
+#
+# Merging still only reaches dev on its own: prod always waits for approval.
+# Needs "Allow auto-merge" ticked in Settings > General > Pull Requests.
+name: Dependabot auto-merge
+
+on: pull_request
+
+permissions:
+  contents: read
+
+jobs:
+  automerge:
+    name: Auto-merge minor and patch updates
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'mifidon96/Pick-a-Pub'
+    permissions:
+      contents: write      # merge the PR
+      pull-requests: write # turn on auto-merge
+    steps:
+      - name: What is being updated
+        id: meta
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # npm packages and Terraform providers only. For a grouped PR, update-type
+      # is the biggest change in the group, so one major update holds it back.
+      - name: Turn on auto-merge
+        if: >-
+          steps.meta.outputs.package-ecosystem != 'github_actions' &&
+          (steps.meta.outputs.update-type == 'version-update:semver-minor' ||
+           steps.meta.outputs.update-type == 'version-update:semver-patch')
+        run: gh pr merge --auto --squash --delete-branch "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Leave for review
+        if: steps.meta.outputs.package-ecosystem == 'github_actions' || steps.meta.outputs.update-type == 'version-update:semver-major'
+        # Values go in through env, never straight into the script (no injection).
+        run: echo "::notice::$UPDATE_TYPE update of $NAMES, left for a person to review."
+        env:
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+          NAMES: ${{ steps.meta.outputs.dependency-names }}
