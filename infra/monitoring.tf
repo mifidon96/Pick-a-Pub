@@ -21,15 +21,57 @@ locals {
   alarm_actions = [aws_sns_topic.alerts.arn]
 }
 
-# Any Lambda error. On the API that means someone saw "Something went wrong".
+# Any API or admin error. On the API that means someone saw "Something went wrong".
+# The importer has its own alarms below.
 resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
-  for_each = local.functions
+  for_each = { for k, v in local.functions : k => v if k != "importer" }
 
   alarm_name          = "${local.name}-${each.key}-errors"
   alarm_description   = "${each.value} threw an error. Check its log group in CloudWatch."
   namespace           = "AWS/Lambda"
   metric_name         = "Errors"
   dimensions          = { FunctionName = each.value }
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+}
+
+# The importer: a slow OpenStreetMap makes single tries fail, and Lambda retries
+# them twice by itself, so one error is normal. Alarm only when it's not.
+resource "aws_cloudwatch_metric_alarm" "importer_errors" {
+  alarm_name          = "${local.name}-importer-errors"
+  alarm_description   = "${local.functions.importer} failed 5+ times in 15 minutes. OpenStreetMap may be down; check its log group."
+  namespace           = "AWS/Lambda"
+  metric_name         = "Errors"
+  dimensions          = { FunctionName = local.functions.importer }
+  statistic           = "Sum"
+  period              = 900
+  evaluation_periods  = 1
+  threshold           = 5
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = local.alarm_actions
+  ok_actions          = local.alarm_actions
+}
+
+# Same alarm as before, just its own block now, so update it in place.
+moved {
+  from = aws_cloudwatch_metric_alarm.lambda_errors["importer"]
+  to   = aws_cloudwatch_metric_alarm.importer_errors
+}
+
+# An import or fixtures job failed all 3 tries and Lambda gave up on it.
+resource "aws_cloudwatch_metric_alarm" "importer_dropped" {
+  alarm_name          = "${local.name}-importer-dropped"
+  alarm_description   = "An import or fixtures job failed all 3 tries and was dropped. Check the importer log group."
+  namespace           = "AWS/Lambda"
+  metric_name         = "AsyncEventsDropped"
+  dimensions          = { FunctionName = local.functions.importer }
   statistic           = "Sum"
   period              = 300
   evaluation_periods  = 1
@@ -256,6 +298,8 @@ resource "aws_cloudwatch_dashboard" "main" {
           alarms = concat(
             [for a in aws_cloudwatch_metric_alarm.lambda_errors : a.arn],
             [
+              aws_cloudwatch_metric_alarm.importer_errors.arn,
+              aws_cloudwatch_metric_alarm.importer_dropped.arn,
               aws_cloudwatch_metric_alarm.api_throttles.arn,
               aws_cloudwatch_metric_alarm.api_5xx.arn,
               aws_cloudwatch_metric_alarm.api_latency.arn,
