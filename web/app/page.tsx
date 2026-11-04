@@ -97,7 +97,10 @@ function PubSearch() {
 
   // New places: make sure their pubs are imported before listing them.
   const centreKey = `${centre.lat.toFixed(4)},${centre.lng.toFixed(4)}`;
-  const [area, setArea] = useState<{ key: string; state: "ready" | "importing" | "failed"; message?: string }>({ key: "", state: "ready" });
+  // OpenStreetMap is sometimes slow. The importer retries by itself (up to 3
+  // tries over a few minutes), so after the first 100 seconds we say it's busy
+  // and keep checking every 10 seconds, giving up after about 8 minutes.
+  const [area, setArea] = useState<{ key: string; state: "ready" | "importing" | "failed"; message?: string; busy?: boolean }>({ key: "", state: "ready" });
   useEffect(() => {
     if (centre.areaId) return;
     let live = true;
@@ -108,11 +111,13 @@ function PubSearch() {
           .then((r) => {
             if (!live) return;
             if (r.status === "ready") setArea({ key: centreKey, state: "ready" });
-            else if (++polls < 25) poll();
-            else setArea({ key: centreKey, state: "failed", message: "Finding pubs here is taking too long. Try again in a minute." });
+            else if (++polls < 63) {
+              if (polls === 25) setArea({ key: centreKey, state: "importing", busy: true });
+              poll();
+            } else setArea({ key: centreKey, state: "failed", message: "OpenStreetMap is still busy. Try again in a few minutes." });
           })
           .catch(() => live && setArea({ key: centreKey, state: "failed", message: "Could not check this area." }));
-      }, 4000);
+      }, polls < 25 ? 4000 : 10000);
     ensureArea(centre.lat, centre.lng)
       .then((r) => {
         if (!live) return;
@@ -126,6 +131,7 @@ function PubSearch() {
   }, [centre, centreKey]);
   const areaReady = Boolean(centre.areaId) || (area.key === centreKey && area.state === "ready");
   const areaPending = !centre.areaId && (area.key !== centreKey || area.state === "importing");
+  const areaBusy = areaPending && area.key === centreKey && Boolean(area.busy);
   const areaFailed = !centre.areaId && area.key === centreKey && area.state === "failed" ? area.message : null;
 
   const key = `${centre.lat},${centre.lng},${radius},${sort},${vibe},${has.join(",")},${fans}`;
@@ -271,7 +277,9 @@ function PubSearch() {
 
       {areaPending && (
         <p className="rounded border border-line bg-card p-4 text-sm">
-          Finding pubs near {centre.label}... The first search in a new area can take up to a minute.
+          {areaBusy
+            ? "OpenStreetMap is busy right now. We'll keep trying; check back in a few minutes."
+            : `Finding pubs near ${centre.label}... The first search in a new area can take up to a minute.`}
         </p>
       )}
       {areaFailed && <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{areaFailed}</p>}
