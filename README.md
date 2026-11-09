@@ -208,6 +208,8 @@ Run one test file with `npm test -- reviews`.
 
 ## Architecture
 
+The one-page tour, with diagrams, is [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ```
 Browser -> CloudFront -> S3 (static Next.js export)
 Browser -> API Gateway (checks Cognito token on writes) -> Lambda -> RDS Postgres
