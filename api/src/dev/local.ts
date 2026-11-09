@@ -1,10 +1,10 @@
 import { createServer } from "node:http";
-import { handle } from "./app";
-import { runAdmin } from "./admin";
-import { fetchPubs } from "./importer";
-import { osmToPub } from "../../scripts/osm-to-pub.mjs";
-import { attachWikimediaPhotos } from "../../scripts/wikimedia.mjs";
-import { inUk, TILE_IMPORT_RADIUS_M, tileFor } from "./tiles";
+import { handle } from "../routes";
+import { runAdmin } from "../admin";
+import { fetchPubs } from "../handlers/importer";
+import { osmToPub } from "../../../scripts/osm-to-pub.mjs";
+import { attachWikimediaPhotos } from "../../../scripts/wikimedia.mjs";
+import { inUk, TILE_IMPORT_RADIUS_M, tileFor } from "../lib/tiles";
 
 // Local stand-in for the importer Lambda: same API, imports straight into the local database.
 async function localArea(method: string, path: string, lat: number, lng: number) {

@@ -1,11 +1,11 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 import { InvokeCommand, LambdaClient } from "@aws-sdk/client-lambda";
-import { osmToPub, type OsmElement } from "../../scripts/osm-to-pub.mjs";
-import { attachWikimediaPhotos } from "../../scripts/wikimedia.mjs";
-import { overpass } from "../../scripts/overpass.mjs";
-import { inUk, TILE_IMPORT_RADIUS_M, tileFor } from "./tiles";
-import { copyPhotos, type ToCopy } from "./mirror";
-import { fetchFixtures } from "./fixtures";
+import { osmToPub, type OsmElement } from "../../../scripts/osm-to-pub.mjs";
+import { attachWikimediaPhotos } from "../../../scripts/wikimedia.mjs";
+import { overpass } from "../../../scripts/overpass.mjs";
+import { inUk, TILE_IMPORT_RADIUS_M, tileFor } from "../lib/tiles";
+import { copyPhotos, type ToCopy } from "../services/mirror";
+import { fetchFixtures } from "../services/fixtures";
 
 // "Search anywhere" importer. Runs OUTSIDE the private network so it can reach
 // OpenStreetMap without a NAT gateway; it never touches the database itself and

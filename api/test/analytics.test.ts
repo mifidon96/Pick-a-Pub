@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-const { cleanPath, cleanReferrer } = await import("../src/analytics");
-const { handle } = await import("../src/app");
+const { cleanPath, cleanReferrer } = await import("../src/services/analytics");
+const { handle } = await import("../src/routes");
 const { runAdmin } = await import("../src/admin");
-const { db } = await import("../src/db");
+const { db } = await import("../src/lib/db");
 
 // Paths keep only the query that identifies the page.
 assert.equal(cleanPath("/pub/?id=12&utm_source=x"), "/pub/?id=12");

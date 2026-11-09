@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-const { guessChannel, matchTeam, fetchFixtures } = await import("../src/fixtures");
-const { refreshFixtures } = await import("../src/importer");
+const { guessChannel, matchTeam, fetchFixtures } = await import("../src/services/fixtures");
+const { refreshFixtures } = await import("../src/handlers/importer");
 const { runAdmin } = await import("../src/admin");
-const { handle } = await import("../src/app");
-const { db } = await import("../src/db");
+const { handle } = await import("../src/routes");
+const { db } = await import("../src/lib/db");
 
 // --- UK TV guess (UK local time, both sides of the clocks going back) ---
 assert.equal(guessChannel("PL", new Date("2026-10-24T14:00:00Z")), "blackout", "Sat 3pm BST");

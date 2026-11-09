@@ -1,4 +1,4 @@
-import teams from "../../web/lib/teams.json";
+import teams from "../../../web/lib/teams.json";
 
 // "Where's it showing?": upcoming matches from football-data.org (free tier),
 // fetched by the importer Lambda (it has internet access) and stored by the

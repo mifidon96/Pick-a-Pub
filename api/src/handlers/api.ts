@@ -1,6 +1,6 @@
 import type { APIGatewayProxyEventV2WithJWTAuthorizer, APIGatewayProxyResultV2 } from "aws-lambda";
-import { handle } from "./app";
-import { runAdmin, type AdminEvent } from "./admin";
+import { handle } from "../routes";
+import { runAdmin, type AdminEvent } from "../admin";
 
 // Public API, behind API Gateway (HTTP API, payload v2).
 // API Gateway verifies the Cognito token. The user id is only present on routes

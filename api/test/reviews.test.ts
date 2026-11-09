@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-const { handle } = await import("../src/app");
-const { db } = await import("../src/db");
+const { handle } = await import("../src/routes");
+const { db } = await import("../src/lib/db");
 
 // Quick reviews and fan teams.
 const U = ["rev-test-1", "rev-test-2", "rev-test-3"];
