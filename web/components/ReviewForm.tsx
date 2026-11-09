@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { putReview } from "@/lib/api";
 import {
-  FACT_KEYS, FACT_LABELS, QUICK_KEYS, SCORE_KEYS, SCORE_LABELS, TEAMS, VIBE_LABELS, putReview,
-  type FactKey, type Review, type ReviewInput, type ScoreKey,
-} from "@/lib/api";
+  FACT_KEYS, FACT_LABELS, QUICK_KEYS, SCORE_KEYS, SCORE_LABELS, TEAMS, VIBE_LABELS,
+  type FactKey, type ScoreKey,
+} from "@/lib/ratings";
+import type { Review, ReviewInput } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
 
 type Props = { pubId: number; existing?: Review; defaultName?: string; onSaved: () => void };

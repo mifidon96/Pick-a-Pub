@@ -1,5 +1,5 @@
 import { Stars } from "@/components/Scores";
-import type { Verdict } from "@/lib/api";
+import type { Verdict } from "@/lib/types";
 
 // Pick-a-Pub's own review of a pub. Deliberately styled apart from customer ratings.
 export function VerdictPanel({ verdict }: { verdict: Verdict }) {
