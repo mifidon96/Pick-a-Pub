@@ -1,6 +1,6 @@
 "use client";
 
-import type { Pub } from "@/lib/api";
+import type { Pub } from "@/lib/types";
 
 // Most people pick a pub because "mates decide", so make it easy to drop one into a group chat.
 export default function ShareButton({ pub }: { pub: Pub }) {

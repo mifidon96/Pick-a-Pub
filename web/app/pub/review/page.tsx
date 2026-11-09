@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { getMyReview, getPub, type PubDetail, type Review } from "@/lib/api";
+import { getMyReview, getPub } from "@/lib/api";
+import type { PubDetail, Review } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
 import ReviewForm from "@/components/ReviewForm";
 

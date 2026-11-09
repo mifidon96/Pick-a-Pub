@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { Pub } from "@/lib/api";
+import type { Pub } from "@/lib/types";
 import { FactChips, RatingBadge } from "@/components/Scores";
 import { VerdictChip } from "@/components/Verdict";
 

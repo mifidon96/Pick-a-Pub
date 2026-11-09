@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { uploadPhoto, type Photo } from "@/lib/api";
+import { uploadPhoto } from "@/lib/api";
+import type { Photo } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
 import { resizePhoto } from "@/lib/resize";
 

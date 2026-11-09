@@ -3,15 +3,17 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import {
-  CHANNEL_FACT, FACT_LABELS, fixturePubs, LISTINGS_URL, listFixtures, TEAMS, teamName,
-  type Fixture, type Pub,
-} from "@/lib/api";
+import { ChannelBadge, MatchChips } from "@/components/MatchChips";
 import PubCard from "@/components/PubCard";
 import SendPlan from "@/components/SendPlan";
+import { useFetch } from "@/hooks/useFetch";
+import { fixturePubs, listFixtures } from "@/lib/api";
+import { AREA_CENTRES, centreFromQuery, type Centre } from "@/lib/areas";
 import { lastList } from "@/lib/lastList";
+import { CHANNEL_FACT, LISTINGS_URL, readTeam, saveTeam, ukDay, ukTime } from "@/lib/matches";
 import { usePageInfo } from "@/lib/pageInfo";
-import AREAS from "@/lib/areas.json";
+import { FACT_LABELS, TEAMS, teamName } from "@/lib/ratings";
+import type { Fixture } from "@/lib/types";
 
 // Where's it showing?
 //   /match/                 upcoming matches, optionally for one team (?team=arsenal)
@@ -29,33 +31,7 @@ function MatchView() {
   return Number.isInteger(id) && id > 0 ? <MatchPubs id={id} /> : <Fixtures />;
 }
 
-// Your team is remembered in this browser only, as a convenience.
-const TEAM_KEY = "pickapub:team";
-const readTeam = () => {
-  try {
-    return localStorage.getItem(TEAM_KEY) ?? "";
-  } catch {
-    return "";
-  }
-};
-const saveTeam = (t: string) => {
-  try {
-    if (t) localStorage.setItem(TEAM_KEY, t);
-    else localStorage.removeItem(TEAM_KEY);
-  } catch {
-    /* storage blocked */
-  }
-};
-
-const ukDay = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/London" });
-const ukTime = (iso: string) =>
-  new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
-
-function ChannelBadge({ f }: { f: Fixture }) {
-  const style = f.channel === "blackout" ? "bg-line text-muted" : f.channel === "unknown" ? "border border-line text-muted" : "bg-amber/20 text-ink";
-  return <span className={`rounded-full px-2 py-0.5 text-xs ${style}`}>{f.channel_name}</span>;
-}
+// --- The list of upcoming matches ---------------------------------------------
 
 function Fixtures() {
   const router = useRouter();
@@ -64,21 +40,15 @@ function Fixtures() {
     const v = params.get("team") ?? readTeam();
     return TEAMS.some((t) => t.id === v) ? v : "";
   });
-  const [data, setData] = useState<{ team: string; fixtures?: Fixture[]; error?: string } | null>(null);
+  const { data, error, loading } = useFetch(team, () => listFixtures({ days: 7, team }));
 
+  // Keep the URL and the remembered team in step with the dropdown.
   useEffect(() => {
     router.replace(team ? `/match/?team=${team}` : "/match/", { scroll: false });
     saveTeam(team);
-    let live = true;
-    listFixtures({ days: 7, team })
-      .then((r) => live && setData({ team, fixtures: r.fixtures }))
-      .catch((e: Error) => live && setData({ team, error: e.message }));
-    return () => {
-      live = false;
-    };
   }, [team, router]);
 
-  const loading = !data || data.team !== team;
+  // Group by day, in UK time.
   const days = new Map<string, Fixture[]>();
   for (const f of data?.fixtures ?? []) {
     const d = ukDay(f.kickoff);
@@ -103,8 +73,8 @@ function Fixtures() {
       </label>
 
       {loading && <p className="text-sm text-muted">Loading matches...</p>}
-      {!loading && data?.error && <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{data.error}</p>}
-      {!loading && data?.fixtures?.length === 0 && (
+      {error && <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+      {data?.fixtures.length === 0 && (
         <p className="rounded border border-line bg-card p-4 text-sm">
           No {team ? `${teamName(team)} ` : ""}matches in the next 7 days that we know about. We list the Premier
           League, Championship and Champions League (plus the Euros and World Cup).
@@ -141,47 +111,33 @@ function Fixtures() {
   );
 }
 
-// Where to look: the place from the last pub search, or a featured area.
-type Centre = { lat: number; lng: number; label: string; key: string };
-const AREA_CENTRES: Centre[] = AREAS.map((a) => ({ lat: a.lat, lng: a.lng, label: a.label, key: a.id }));
+// --- Pubs for one match -------------------------------------------------------
+
+// Where to look: the place from the last pub search, then the featured areas.
+const keyOf = (c: Centre) => c.areaId ?? "last";
 function lastCentre(): Centre | null {
-  const q = new URLSearchParams(lastList().split("?")[1] ?? "");
-  const area = AREA_CENTRES.find((a) => a.key === q.get("area"));
-  if (area) return area;
-  const lat = Number(q.get("lat")), lng = Number(q.get("lng")), place = q.get("place");
-  return place && q.get("lat") && q.get("lng") && Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng, label: place, key: "last" } : null;
+  return centreFromQuery(new URLSearchParams(lastList().split("?")[1] ?? ""));
 }
 
 function MatchPubs({ id }: { id: number }) {
   const [last] = useState(lastCentre);
-  const centres = last && last.key === "last" ? [last, ...AREA_CENTRES] : AREA_CENTRES;
+  const centres = last && !last.areaId ? [last, ...AREA_CENTRES] : AREA_CENTRES;
   const [centre, setCentre] = useState<Centre>(() => last ?? AREA_CENTRES[0]!);
   const [team] = useState(readTeam);
-  const [data, setData] = useState<{ key: string; fixture?: Fixture; pubs?: (Pub & { has_channel: boolean | null })[]; error?: string } | null>(null);
-  const key = `${id},${centre.lat},${centre.lng}`;
+  const { data, error, loading } = useFetch(`${id},${centre.lat},${centre.lng}`, () => fixturePubs(id, centre.lat, centre.lng));
 
-  useEffect(() => {
-    let live = true;
-    fixturePubs(id, centre.lat, centre.lng)
-      .then((r) => live && setData({ key, ...r }))
-      .catch((e: Error) => live && setData({ key, error: e.message }));
-    return () => {
-      live = false;
-    };
-  }, [id, centre, key]);
-
-  usePageInfo(data?.fixture
+  usePageInfo(data
     ? {
         title: `${data.fixture.home_name} v ${data.fixture.away_name}: where it's showing`,
         description: `Pubs showing ${data.fixture.home_name} v ${data.fixture.away_name}, ${ukDay(data.fixture.kickoff)} at ${ukTime(data.fixture.kickoff)}, rated by football fans.`,
       }
     : null);
 
-  if (!data || data.key !== key) return <p className="text-sm text-muted">Loading...</p>;
-  if (data.error || !data.fixture) {
+  if (loading) return <p className="text-sm text-muted">Loading...</p>;
+  if (error || !data) {
     return (
       <div className="space-y-3">
-        <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{data.error ?? "Match not found"}</p>
+        <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error ?? "Match not found"}</p>
         <Link href="/match/" className="text-sm text-pitch underline">All matches</Link>
       </div>
     );
@@ -218,12 +174,12 @@ function MatchPubs({ id }: { id: number }) {
           <label className="block max-w-sm space-y-1 text-sm">
             <span className="block text-xs text-muted">Pubs near</span>
             <select
-              value={centre.key}
-              onChange={(e) => setCentre(centres.find((c) => c.key === e.target.value) ?? centre)}
+              value={keyOf(centre)}
+              onChange={(e) => setCentre(centres.find((c) => keyOf(c) === e.target.value) ?? centre)}
               className="w-full rounded border border-line bg-card px-2 py-2 text-base"
             >
               {centres.map((c) => (
-                <option key={c.key} value={c.key}>{c.label}</option>
+                <option key={keyOf(c)} value={keyOf(c)}>{c.label}</option>
               ))}
             </select>
             <span className="block text-xs text-muted">
@@ -238,16 +194,11 @@ function MatchPubs({ id }: { id: number }) {
             </p>
           )}
 
-          {data.pubs?.length === 0 && <p className="rounded border border-line bg-card p-4 text-sm">No pubs found near {centre.label}.</p>}
+          {data.pubs.length === 0 && <p className="rounded border border-line bg-card p-4 text-sm">No pubs found near {centre.label}.</p>}
           <ul className="space-y-3">
-            {data.pubs?.map((p) => (
+            {data.pubs.map((p) => (
               <li key={p.id} className="space-y-2">
-                <PubCard
-                  pub={p}
-                  extra={
-                    <MatchChips pub={p} fixture={f} channelLabel={channelLabel} rival={rival} />
-                  }
-                />
+                <PubCard pub={p} extra={<MatchChips pub={p} fixture={f} channelLabel={channelLabel} rival={rival} />} />
                 <SendPlan fixture={f} pub={p} />
               </li>
             ))}
@@ -255,23 +206,5 @@ function MatchPubs({ id }: { id: number }) {
         </>
       )}
     </div>
-  );
-}
-
-function MatchChips(props: { pub: Pub & { has_channel: boolean | null }; fixture: Fixture; channelLabel: string | null; rival: string | null }) {
-  const { pub, fixture: f, channelLabel, rival } = props;
-  const chips: [string, string][] = [];
-  if (channelLabel && pub.has_channel === true) chips.push([`Has ${channelLabel}`, "bg-pitch text-white"]);
-  if (channelLabel && pub.has_channel === false) chips.push([`Reviewers say no ${channelLabel}`, "bg-red-50 text-red-800"]);
-  // "<Team> fans" already shows in the pub's chips; add a word if it matters to you.
-  if (rival && pub.fan_team === rival) chips.push(["Rival fans: you may be outnumbered", "bg-amber/30 text-ink"]);
-  else if (rival && pub.fan_team && (pub.fan_team === f.home_team || pub.fan_team === f.away_team)) chips.push(["Your team's pub", "bg-amber/30 text-ink"]);
-  if (!chips.length) return null;
-  return (
-    <ul className="flex flex-wrap gap-1.5">
-      {chips.map(([label, style]) => (
-        <li key={label} className={`rounded-full px-2 py-0.5 text-xs ${style}`}>{label}</li>
-      ))}
-    </ul>
   );
 }

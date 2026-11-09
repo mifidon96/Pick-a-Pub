@@ -194,6 +194,18 @@ To add an endpoint:
 
 Run one test file with `npm test -- reviews`.
 
+### Website layout (`web`)
+
+| Folder | What's in it |
+| --- | --- |
+| `app/` | The pages: home (`page.tsx`), `pub/`, `pub/review/`, `match/`, `account/`. Mostly layout |
+| `hooks/` | Page logic: `useFetch` (load data, ignore stale replies), `useListSettings` (list filters kept in the URL), `useAreaImport` (wait for a new area's pubs), `useMyLocation` |
+| `components/` | Pieces of pages: pub cards, the map, search options, review form, info card, review list |
+| `lib/api.ts` | One function per API endpoint |
+| `lib/ratings.ts` | Score, fact, filter and team labels (same keys as the API) |
+| `lib/types.ts` | The shapes the API sends back |
+| `lib/` (other) | Sign-in (`auth.tsx`), runtime config, areas, match helpers |
+
 ## Architecture
 
 ```

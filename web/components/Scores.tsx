@@ -1,4 +1,5 @@
-import { FACT_KEYS, FACT_LABELS, SCORE_KEYS, SCORE_LABELS, teamName, vibeLabel, type Pub } from "@/lib/api";
+import { FACT_KEYS, FACT_LABELS, SCORE_KEYS, SCORE_LABELS, teamName, vibeLabel } from "@/lib/ratings";
+import type { Pub } from "@/lib/types";
 
 // Five stars, filled to the nearest half.
 export function Stars({ value, size = "text-base" }: { value: number; size?: string }) {

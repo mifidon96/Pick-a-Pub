@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { LayerGroup, Map as LeafletMap } from "leaflet";
 import "leaflet/dist/leaflet.css";
-import type { Pub } from "@/lib/api";
+import type { Pub } from "@/lib/types";
 
 // Map of the current results. Leaflet with OpenStreetMap tiles: free for light
 // use with attribution (https://operations.osmfoundation.org/policies/tiles/).

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { REPORT_REASONS, reportReview, type ReportReason } from "@/lib/api";
+import { reportReview } from "@/lib/api";
+import { REPORT_REASONS, type ReportReason } from "@/lib/ratings";
 import { useAuth } from "@/lib/auth";
 
 // Small "Report" link under a review. Opens a short form in place.

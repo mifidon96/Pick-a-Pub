@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Fixture, Pub } from "@/lib/api";
+import type { Fixture, Pub } from "@/lib/types";
 
 // "Send the plan to the group": the match, kick-off, channel and pub in one
 // message for the group chat. Uses the phone's share sheet where there is one,
