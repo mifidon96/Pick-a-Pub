@@ -163,7 +163,7 @@ fi
 
 step "Loading Pick-a-Pub verdicts and details (content/pubs.yaml)"
 tmp="$(mktemp)"
-(cd "$ROOT/api" && node dist/admin-cli.js content-json "$ROOT/content/pubs.yaml" "$tmp")
+(cd "$ROOT/api" && node dist/dev/admin-cli.js content-json "$ROOT/content/pubs.yaml" "$tmp")
 admin_invoke "$tmp"; rm -f "$tmp"
 
 step "Preparing the website for $ENV"

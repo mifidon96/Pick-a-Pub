@@ -275,7 +275,7 @@ create table if not exists pub_editorial (
 -- Search anywhere: which map tiles have had their pubs imported
 -- ---------------------------------------------------------------------------
 create table if not exists import_tiles (
-  tile         text primary key,               -- e.g. "1286_-17", see api/src/tiles.ts
+  tile         text primary key,               -- e.g. "1286_-17", see api/src/lib/tiles.ts
   imported_at  timestamptz not null default now(),
   pub_count    integer not null default 0
 );

@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { db } from "./db";
+import { db } from "../lib/db";
 
 // Cookie-free page counts. See the page_views table in db/schema.sql.
 const BOTS = /bot|crawl|spider|slurp|preview|headless|lighthouse|monitor|curl|wget|python|facebookexternalhit|whatsapp/i;

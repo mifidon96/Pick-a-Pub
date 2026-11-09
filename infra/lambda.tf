@@ -19,7 +19,7 @@ locals {
   }
 
   # No database password here: the Lambdas sign a 15-minute IAM login token for
-  # db_app_user each time they connect (api/src/db.ts). deploy.sh creates that
+  # db_app_user each time they connect (api/src/lib/db.ts). deploy.sh creates that
   # user with the master password, passed in for that one call only.
   db_app_user = "pickapub_app"
   lambda_env = {

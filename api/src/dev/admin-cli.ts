@@ -1,9 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { writeFileSync } from "node:fs";
-import { runAdmin } from "./admin";
-import { parseContent } from "./content";
-import { db } from "./db";
+import { runAdmin } from "../admin";
+import { parseContent } from "../services/content";
+import { db } from "../lib/db";
 
 // Local equivalent of invoking the admin Lambda.
 //   npm run admin -- migrate

@@ -91,7 +91,7 @@ for football.
   GitHub secret (or `TF_VAR_football_data_api_key` for a laptop deploy). Without
   it the page just shows no matches.
 - football-data.org has no TV data, so the channel is a best guess from the UK
-  rights deals (`guessChannel` in `api/src/fixtures.ts`): Saturday 3pm is the
+  rights deals (`guessChannel` in `api/src/services/fixtures.ts`): Saturday 3pm is the
   blackout, Premier League Saturday 12:30 is TNT and the rest Sky, Championship
   Sky, Champions League TNT, tournaments BBC or ITV. The site always links to the
   TV listings. Update the function when the rights change (2027 for the
@@ -169,6 +169,30 @@ at most every 30 days. UK only, and the import route is throttled.
 | `infra/` | Terraform for AWS (eu-west-2) |
 | `scripts/` | Deploy, one-off account setup, pub import, photo moderation |
 | `.github/workflows/` | CI on pull requests, deploy on merge |
+
+### API layout (`api/src`)
+
+| Folder | What's in it |
+| --- | --- |
+| `handlers/` | The Lambda entry points. `api.ts` (the api and admin Lambdas) turns an API Gateway event into a request; `importer.ts` imports new areas and runs the fixtures job |
+| `routes/` | The public API. `index.ts` is the route table; one file per area: `pubs`, `reviews`, `photos`, `fixtures`, `account` |
+| `admin/` | The admin Lambda. `index.ts` maps each action to a function; one file per area: `pubs`, `content`, `photos`, `fixtures`, `moderation` |
+| `services/` | Talking to other things: S3 photos, football-data.org, Wikimedia copies, page counts, `content/pubs.yaml` |
+| `lib/` | Shared plumbing: database connection and IAM login, request checks (`http.ts`), review fields (`ratings.ts`), area tiles |
+| `dev/` | The local API server and admin command line |
+
+A request: browser → API Gateway (checks the sign-in token) → `handlers/api.ts` →
+`routes/index.ts` finds the handler → the handler checks the input and queries
+Postgres → JSON back. A handler throws `HttpError` to send a 4xx; anything else
+is logged and returns a 500, which trips the `api-errors` alarm.
+
+To add an endpoint:
+1. Write the handler in the right `routes/` file.
+2. Add it to the table in `routes/index.ts`.
+3. Add the same key to `local.routes` in `infra/api_gateway.tf` (and say if it needs sign-in).
+4. Add a test. `npm test -- routes` fails if steps 2 and 3 don't match.
+
+Run one test file with `npm test -- reviews`.
 
 ## Architecture
 
@@ -367,11 +391,11 @@ AWS_PROFILE=personal ./scripts/moderate.sh hide|restore|delete <review id>
 ## Security
 
 - **No database password in the app.** The Lambdas log in as `pickapub_app` with a
-  15-minute IAM token they sign themselves (`api/src/db.ts`), allowed by an
+  15-minute IAM token they sign themselves (`api/src/lib/db.ts`), allowed by an
   `rds-db:connect` policy for that one user. Signing is local, so no VPC endpoint
   or Secrets Manager charge. The master password exists only in Terraform state
   (encrypted S3) and is passed to the admin Lambda once per deploy to create or
-  update that user (`api/src/dbuser.ts`, the `setup_db_user` step in `deploy.sh`).
+  update that user (`api/src/lib/dbuser.ts`, the `setup_db_user` step in `deploy.sh`).
 - **Dependencies**: Dependabot opens grouped update PRs every Monday for the API,
   the site, GitHub Actions and Terraform providers (`.github/dependabot.yml`).
   CI fails on any high or critical vulnerability in packages that ship

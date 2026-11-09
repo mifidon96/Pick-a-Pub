@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 process.env.PHOTOS_BUCKET = "test-bucket";
 process.env.PHOTOS_BASE_URL = "https://cdn.example";
-const { handler } = await import("../src/importer");
+const { handler } = await import("../src/handlers/importer");
 const { objects } = await import("./mock-s3");
-const { handle } = await import("../src/app");
+const { handle } = await import("../src/routes");
 import { asyncCalls } from "./mock-lambda";
-import { db } from "../src/db";
-import { tileFor } from "../src/tiles";
+import { db } from "../src/lib/db";
+import { tileFor } from "../src/lib/tiles";
 
 // Fake Overpass: two pubs near Cardiff Central.
 let wikimediaGone = false;

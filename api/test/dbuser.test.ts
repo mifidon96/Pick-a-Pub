@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { Client } from "pg";
 import schema from "../../db/schema.sql";
 
-// The IAM login set-up (api/src/dbuser.ts) against a database shaped like RDS:
+// The IAM login set-up (api/src/lib/dbuser.ts) against a database shaped like RDS:
 // a non-superuser master that owns the database. Needs a superuser to create it.
 const base = {
   host: process.env.PGHOST ?? "localhost",
@@ -58,7 +58,7 @@ for (const existing of [true, false]) {
 
   process.env.PGDATABASE = "dbuser_test";
   process.env.PGMASTERUSER = "dbuser_master";
-  const { setupAppUser } = await import("../src/dbuser");
+  const { setupAppUser } = await import("../src/lib/dbuser");
   assert.deepEqual(await setupAppUser("masterpw"), { ok: true, user: "pickapub_app" });
   assert.deepEqual(await setupAppUser("masterpw"), { ok: true, user: "pickapub_app" }, "safe to run twice");
 

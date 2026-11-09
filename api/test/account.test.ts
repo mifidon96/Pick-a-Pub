@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 process.env.PHOTOS_BUCKET = "test-bucket";
 process.env.PHOTOS_BASE_URL = "https://cdn.example";
-const { handle } = await import("../src/app");
+const { handle } = await import("../src/routes");
 const { runAdmin } = await import("../src/admin");
 const { objects } = await import("./mock-s3");
-const { db } = await import("../src/db");
+const { db } = await import("../src/lib/db");
 
 // Test users, cleaned up first so the test can run again.
 const AUTHOR = "acct-test-author";

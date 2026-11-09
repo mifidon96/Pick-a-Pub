@@ -1,5 +1,5 @@
 import { parse } from "yaml";
-import teams from "../../web/lib/teams.json";
+import teams from "../../../web/lib/teams.json";
 
 // content/pubs.yaml -> validated entries for the "apply_content" admin action.
 // Errors name the entry so they are easy to fix.

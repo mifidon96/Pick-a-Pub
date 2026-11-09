@@ -26,7 +26,7 @@ resource "aws_db_instance" "main" {
   vpc_security_group_ids = [aws_security_group.db.id]
   publicly_accessible    = false
 
-  # The app logs in with short-lived IAM tokens, not a password (api/src/db.ts).
+  # The app logs in with short-lived IAM tokens, not a password (api/src/lib/db.ts).
   # The master password is only used by deploy.sh to set up that login.
   iam_database_authentication_enabled = true
   multi_az                            = false
