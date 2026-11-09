@@ -10,11 +10,11 @@
     "test": "node test/run.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-lambda": "^3.1161.0",
-    "@aws-sdk/client-s3": "^3.1161.0",
-    "@aws-sdk/rds-signer": "^3.1161.0",
-    "@aws-sdk/s3-presigned-post": "^3.1161.0",
-    "@aws-sdk/s3-request-presigner": "^3.1161.0",
+    "@aws-sdk/client-lambda": "^3.1164.0",
+    "@aws-sdk/client-s3": "^3.1164.0",
+    "@aws-sdk/rds-signer": "^3.1164.0",
+    "@aws-sdk/s3-presigned-post": "^3.1164.0",
+    "@aws-sdk/s3-request-presigner": "^3.1164.0",
     "pg": "^8.13.0",
     "yaml": "^2.9.1"
   },
