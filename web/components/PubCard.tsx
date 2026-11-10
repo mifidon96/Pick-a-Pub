@@ -35,7 +35,7 @@ function PhotoBadge({ pub }: { pub: Pub }) {
     <div className="relative h-20 w-20 overflow-hidden rounded-lg bg-line">
       {/* eslint-disable-next-line @next/next/no-img-element -- static export, no image optimiser */}
       <img src={pub.photo!} alt="" loading="lazy" className="h-full w-full object-cover" />
-      <span className={`absolute inset-x-0 bottom-0 px-1 py-0.5 text-center text-[11px] font-semibold ${pub.stars !== null ? "bg-pitch/90 text-white" : "bg-black/60 text-white"}`}>
+      <span className={`absolute inset-x-0 bottom-0 px-1 py-0.5 text-center text-[11px] font-semibold ${pub.stars !== null ? "bg-tile/90 text-white" : "bg-black/60 text-white"}`}>
         {label}
       </span>
     </div>

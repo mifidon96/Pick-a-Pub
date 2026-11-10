@@ -18,7 +18,7 @@ export default function ReportButton({ reviewId }: { reviewId: number }) {
   if (state === "done") return <p className="mt-2 text-xs text-muted">Thanks, we will take a look.</p>;
   if (!open) {
     return (
-      <button onClick={() => (signedIn ? setOpen(true) : signIn())} className="mt-2 text-xs text-muted underline">
+      <button onClick={() => (signedIn ? setOpen(true) : signIn())} className="mt-1 inline-flex min-h-11 items-center text-xs text-muted underline">
         Report
       </button>
     );
@@ -57,10 +57,10 @@ export default function ReportButton({ reviewId }: { reviewId: number }) {
       />
       {error && <p className="text-red-700">{error}</p>}
       <div className="flex gap-2">
-        <button onClick={send} disabled={!reason || state === "sending"} className="rounded bg-pitch px-3 py-1 text-white disabled:opacity-40">
+        <button onClick={send} disabled={!reason || state === "sending"} className="min-h-11 rounded-lg bg-pitch px-4 font-semibold text-on-pitch disabled:opacity-40">
           {state === "sending" ? "Sending..." : "Send report"}
         </button>
-        <button onClick={() => setOpen(false)} className="rounded px-3 py-1 text-muted">Cancel</button>
+        <button onClick={() => setOpen(false)} className="min-h-11 rounded-lg px-4 text-muted">Cancel</button>
       </div>
     </div>
   );

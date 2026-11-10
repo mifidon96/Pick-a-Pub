@@ -15,7 +15,7 @@ export default function ShareButton({ pub }: { pub: Pub }) {
     }
   }
   return (
-    <button onClick={share} className="rounded border border-pitch px-3 py-1.5 text-sm font-medium text-pitch hover:bg-pitch/5">
+    <button onClick={share} className="h-12 rounded-xl border border-pitch px-4 text-sm font-semibold text-pitch hover:bg-pitch/10">
       Share with mates
     </button>
   );

@@ -58,9 +58,9 @@ export default function PubInfoCard({ pub }: { pub: PubDetail }) {
         <p className="text-sm text-muted">No extra details listed for this pub yet.</p>
       )}
       <div className="flex flex-wrap gap-3 text-sm">
-        <a href={directions} target="_blank" rel="noopener noreferrer" className="text-pitch underline">Directions</a>
+        <a href={directions} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center font-semibold text-pitch underline">Directions</a>
         {website && (
-          <a href={website} target="_blank" rel="noopener noreferrer nofollow" className="text-pitch underline">Website</a>
+          <a href={website} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex min-h-11 items-center font-semibold text-pitch underline">Website</a>
         )}
       </div>
       <p className="text-xs text-muted">Details from Pick-a-Pub and OpenStreetMap, so check with the pub before you go.</p>

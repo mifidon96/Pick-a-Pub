@@ -74,8 +74,8 @@ export default function AppInstall() {
         <p className="flex-1">
           {android ? "Get Pick-a-Pub on your home screen." : <>Add Pick-a-Pub to your home screen: tap <b>Share</b>, then <b>Add to Home Screen</b>.</>}
         </p>
-        {android && <button onClick={install} className="rounded bg-pitch px-3 py-1.5 font-medium text-white">Install</button>}
-        <button onClick={close} aria-label="Dismiss" className="px-1 text-lg leading-none text-muted">×</button>
+        {android && <button onClick={install} className="h-11 rounded-xl bg-pitch px-4 font-bold text-on-pitch">Install</button>}
+        <button onClick={close} aria-label="Dismiss" className="flex h-11 w-11 items-center justify-center text-xl leading-none text-muted">×</button>
       </div>
     </div>
   );

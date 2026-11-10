@@ -11,7 +11,7 @@ export function ChannelBadge({ f }: { f: Fixture }) {
 export function MatchChips(props: { pub: MatchPub; fixture: Fixture; channelLabel: string | null; rival: string | null }) {
   const { pub, fixture: f, channelLabel, rival } = props;
   const chips: [string, string][] = [];
-  if (channelLabel && pub.has_channel === true) chips.push([`Has ${channelLabel}`, "bg-pitch text-white"]);
+  if (channelLabel && pub.has_channel === true) chips.push([`Has ${channelLabel}`, "bg-pitch text-on-pitch"]);
   if (channelLabel && pub.has_channel === false) chips.push([`Reviewers say no ${channelLabel}`, "bg-red-50 text-red-800"]);
   // "<Team> fans" already shows in the pub's chips; add a word if it matters to you.
   if (rival && pub.fan_team === rival) chips.push(["Rival fans: you may be outnumbered", "bg-amber/30 text-ink"]);
