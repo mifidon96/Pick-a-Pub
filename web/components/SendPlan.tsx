@@ -42,7 +42,7 @@ export default function SendPlan({ fixture, pub }: { fixture: Fixture; pub: Pub 
     <button
       type="button"
       onClick={send}
-      className="inline-flex items-center gap-2 rounded border border-pitch px-3 py-1.5 text-sm font-medium text-pitch"
+      className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-semibold text-pitch hover:bg-pitch/10"
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M22 2 11 13" />

@@ -61,7 +61,7 @@ function PubDetailView() {
               href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([pub.name, pub.address, pub.postcode].filter(Boolean).join(", "))}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="block text-sm text-muted underline decoration-line underline-offset-2 hover:text-pitch"
+              className="inline-flex min-h-11 items-center text-sm text-muted underline decoration-muted/50 underline-offset-2 hover:text-pitch"
             >
               {[pub.address, pub.postcode].filter(Boolean).join(", ")}
             </a>
@@ -71,7 +71,7 @@ function PubDetailView() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Link href={reviewHref} className="inline-flex items-center gap-2 rounded bg-pitch px-4 py-2 font-medium text-white">
+        <Link href={reviewHref} className="inline-flex h-12 items-center gap-2 rounded-xl bg-pitch px-5 font-bold text-on-pitch hover:bg-pitch-dark">
           <PencilIcon /> Rate this pub
         </Link>
         <ShareButton pub={pub} />
@@ -110,7 +110,7 @@ function PubDetailView() {
 function BackToPubs() {
   const router = useRouter();
   return (
-    <button onClick={() => router.push(lastList())} className="text-sm text-pitch underline">
+    <button onClick={() => router.push(lastList())} className="inline-flex min-h-11 items-center text-sm font-semibold text-pitch underline">
       Back to pubs
     </button>
   );
@@ -129,7 +129,7 @@ function NotFound({ message }: { message: string }) {
   return (
     <div className="space-y-3">
       <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{message}</p>
-      <Link href="/" className="text-sm text-pitch underline">Back to pubs</Link>
+      <Link href="/" className="inline-flex min-h-11 items-center text-sm font-semibold text-pitch underline">Back to pubs</Link>
     </div>
   );
 }

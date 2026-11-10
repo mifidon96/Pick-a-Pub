@@ -22,7 +22,7 @@ export default function AccountPage() {
         {available ? (
           <>
             <p>Sign in to download or delete your data.</p>
-            <button onClick={signIn} className="rounded bg-pitch px-4 py-2 font-medium text-white">Sign in</button>
+            <button onClick={signIn} className="h-12 rounded-xl bg-pitch px-5 font-bold text-on-pitch">Sign in</button>
           </>
         ) : (
           <p className="text-muted">Accounts are not available right now.</p>
@@ -70,7 +70,7 @@ export default function AccountPage() {
       <section className="space-y-2 rounded-xl border border-line bg-card p-4">
         <h2 className="font-semibold">Download your data</h2>
         <p className="text-muted">Your name, reviews, photos and reports, as a JSON file.</p>
-        <button onClick={download} disabled={busy !== ""} className="rounded border border-pitch px-4 py-2 font-medium text-pitch disabled:opacity-50">
+        <button onClick={download} disabled={busy !== ""} className="h-12 rounded-xl border border-pitch px-5 font-semibold text-pitch disabled:opacity-50">
           {busy === "export" ? "Preparing..." : "Download my data"}
         </button>
       </section>
@@ -86,14 +86,14 @@ export default function AccountPage() {
           <input
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            className="mt-1 block w-40 rounded border border-line px-2 py-1"
+            className="mt-1 block h-12 w-48 rounded-xl border border-line bg-chalk px-3 text-base"
             autoComplete="off"
           />
         </label>
         <button
           onClick={remove}
           disabled={confirm !== "DELETE" || busy !== ""}
-          className="rounded bg-red-700 px-4 py-2 font-medium text-white disabled:opacity-40"
+          className="h-12 rounded-xl bg-red-700 px-5 font-bold text-on-pitch disabled:opacity-40"
         >
           {busy === "delete" ? "Deleting..." : "Delete my account"}
         </button>

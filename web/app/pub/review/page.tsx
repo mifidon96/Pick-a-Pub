@@ -51,7 +51,7 @@ function ReviewView() {
   return (
     <div className="space-y-5">
       {/* replace, not push, so the review page never ends up in the Back history */}
-      <button onClick={() => router.replace(pubHref)} className="text-sm text-pitch underline">Back to {pub.name}</button>
+      <button onClick={() => router.replace(pubHref)} className="inline-flex min-h-11 items-center text-sm font-semibold text-pitch underline">Back to {pub.name}</button>
       <div>
         <h1 className="text-2xl font-bold">{mine ? "Update your review" : "Rate this pub"}</h1>
         <p className="text-sm text-muted">{pub.name}{pub.address ? `, ${pub.address}` : ""}</p>
@@ -72,7 +72,7 @@ function ReviewView() {
             you agree to the <Link href="/terms/" className="text-pitch underline">terms</Link> and{" "}
             <Link href="/privacy/" className="text-pitch underline">privacy notice</Link>.
           </p>
-          <button onClick={signIn} className="mt-3 rounded bg-pitch px-4 py-2 font-medium text-white">Sign in to review</button>
+          <button onClick={signIn} className="mt-3 h-12 rounded-xl bg-pitch px-5 font-bold text-on-pitch">Sign in to review</button>
         </div>
       ) : (
         <p className="text-sm text-muted">Reviews are not available right now.</p>
@@ -85,7 +85,7 @@ function Problem({ message }: { message: string }) {
   return (
     <div className="space-y-3">
       <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{message}</p>
-      <Link href="/" className="text-sm text-pitch underline">Back to pubs</Link>
+      <Link href="/" className="inline-flex min-h-11 items-center text-sm font-semibold text-pitch underline">Back to pubs</Link>
     </div>
   );
 }

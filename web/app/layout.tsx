@@ -28,10 +28,10 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", images: ["/og.png"] },
   manifest: "/manifest.json",
   icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
-  appleWebApp: { capable: true, title: "Pick-a-Pub", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Pick-a-Pub", statusBarStyle: "black" },
 };
 
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#14432a" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#0b100d" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -45,9 +45,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <PageCount />
           <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">{children}</main>
           <footer className="mx-auto w-full max-w-3xl space-y-2 px-4 py-6 text-xs text-muted">
-            <p className="flex gap-4">
-              <Link href="/privacy/" className="underline">Privacy</Link>
-              <Link href="/terms/" className="underline">Terms</Link>
+            <p className="flex gap-2">
+              <Link href="/privacy/" className="inline-flex min-h-11 items-center px-1 underline">Privacy</Link>
+              <Link href="/terms/" className="inline-flex min-h-11 items-center px-1 underline">Terms</Link>
             </p>
             <p>Pub locations © OpenStreetMap contributors. Place search by postcodes.io; contains OS data © Crown copyright and database right.</p>
           </footer>

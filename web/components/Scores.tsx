@@ -8,7 +8,7 @@ export function Stars({ value, size = "text-base" }: { value: number; size?: str
       {[1, 2, 3, 4, 5].map((i) => {
         const fill = Math.max(0, Math.min(1, value - (i - 1)));
         return (
-          <span key={i} className="relative inline-block text-line" aria-hidden>
+          <span key={i} className="relative inline-block text-white/25" aria-hidden>
             ★
             <span className="absolute inset-0 overflow-hidden text-amber" style={{ width: `${fill * 100}%` }}>
               ★
@@ -30,7 +30,7 @@ export function RatingBadge({ pub }: { pub: Pub }) {
     );
   }
   return (
-    <div className="rounded-lg bg-pitch px-2 py-2 text-center text-white">
+    <div className="rounded-lg bg-tile px-2 py-2 text-center text-white">
       <div className="text-2xl font-bold leading-none">{pub.stars.toFixed(1)}</div>
       <div className="mt-1"><Stars value={pub.stars} size="text-xs" /></div>
       <div className="mt-1 text-[11px] text-white/80">{n} review{n === 1 ? "" : "s"}</div>
@@ -67,7 +67,7 @@ export function FactChips({ pub }: { pub: Pub }) {
   if (!yes.length && !vibe && !fans) return null;
   return (
     <ul className="flex flex-wrap gap-1.5">
-      {fans && <li className="rounded-full bg-pitch px-2 py-0.5 text-xs text-white">{fans} fans</li>}
+      {fans && <li className="rounded-full bg-pitch px-2 py-0.5 text-xs text-on-pitch">{fans} fans</li>}
       {vibe && <li className="rounded-full bg-amber/20 px-2 py-0.5 text-xs text-ink">{vibe}</li>}
       {yes.map((k) => (
         <li key={k} className="rounded-full border border-pitch/30 bg-pitch/5 px-2 py-0.5 text-xs text-pitch">

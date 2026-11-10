@@ -6,8 +6,14 @@ import type { AreaStatus, Fixture, MatchPub, Pub, PubDetail, Review, ReviewInput
 // Routes and what they do: api/src/routes/index.ts. Labels: lib/ratings.ts.
 // Shapes: lib/types.ts. Calls that need sign-in take the headers from useAuth().
 
+export const OFFLINE_MESSAGE = "Couldn't reach Pick-a-Pub. Check your signal and try again.";
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${apiUrl()}${path}`, init);
+  // A network failure (no signal, API down) throws a bare "Failed to fetch";
+  // say something a person can act on instead.
+  const res = await fetch(`${apiUrl()}${path}`, init).catch(() => {
+    throw new Error(OFFLINE_MESSAGE);
+  });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
   return data as T;

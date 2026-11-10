@@ -1,15 +1,29 @@
 @import "tailwindcss";
 
+/* Night match: a dark scheme, easy on the eyes in a dim pub.
+   Every text colour here passes WCAG AA (4.5:1) on the backgrounds it is used on. */
 @theme {
-  --color-pitch: #14432a;
-  --color-pitch-dark: #0c2b1b;
-  --color-chalk: #f6f4ee;
-  --color-ink: #1b1f1c;
-  --color-muted: #5f6b63;
-  --color-line: #dedbd0;
-  --color-amber: #e8a317;
-  --color-card: #ffffff;
+  --color-pitch: #3ddc84; /* floodlit green: main buttons, links, selected things */
+  --color-pitch-dark: #2fbf70; /* hover on green */
+  --color-on-pitch: #0f1512; /* text on green */
+  --color-tile: #234d33; /* rating tiles (white text) */
+  --color-header: #0b100d;
+  --color-chalk: #0f1512; /* page */
+  --color-card: #18211c;
+  --color-ink: #eef2ef; /* text */
+  --color-muted: #a9b5ad; /* secondary text */
+  --color-line: #2a362f; /* borders */
+  --color-amber: #f0b429; /* stars, highlights */
+  /* Error colours, darkened for the dark page */
+  --color-red-50: #2a1513;
+  --color-red-200: #5c2a24;
+  --color-red-700: #ff8a7a;
+  --color-red-800: #ffb3a8;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+:root {
+  color-scheme: dark; /* dark form controls and scrollbars */
 }
 
 body {
@@ -33,7 +47,7 @@ body {
 .pap-pin-rated {
   background: var(--color-pitch);
   border-color: var(--color-amber);
-  color: #fff;
+  color: var(--color-on-pitch);
 }
 .pap-pin::after {
   content: "";

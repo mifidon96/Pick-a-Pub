@@ -56,7 +56,7 @@ export default function PubPhotos({ pubId, pubName, photos }: { pubId: number; p
             type="button"
             disabled={state.busy}
             onClick={() => (signedIn ? input.current?.click() : signIn())}
-            className="inline-flex items-center gap-2 rounded border border-pitch px-3 py-1.5 font-medium text-pitch disabled:opacity-60"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-pitch px-4 font-semibold text-pitch disabled:opacity-60"
           >
             <CameraIcon /> {state.busy ? "Uploading..." : photos.length ? "Add a photo" : "Add the first photo"}
           </button>

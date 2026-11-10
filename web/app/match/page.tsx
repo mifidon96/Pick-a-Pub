@@ -64,7 +64,7 @@ function Fixtures() {
 
       <label className="block max-w-sm space-y-1 text-sm">
         <span className="block text-xs text-muted">Your team</span>
-        <select value={team} onChange={(e) => setTeam(e.target.value)} className="w-full rounded border border-line bg-card px-2 py-2 text-base">
+        <select value={team} onChange={(e) => setTeam(e.target.value)} className="h-12 w-full rounded-xl border border-line bg-card px-3 text-base">
           <option value="">All matches</option>
           {TEAMS.map((t) => (
             <option key={t.id} value={t.id}>{t.name}</option>
@@ -138,7 +138,7 @@ function MatchPubs({ id }: { id: number }) {
     return (
       <div className="space-y-3">
         <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error ?? "Match not found"}</p>
-        <Link href="/match/" className="text-sm text-pitch underline">All matches</Link>
+        <Link href="/match/" className="inline-flex min-h-11 items-center text-sm font-semibold text-pitch underline">All matches</Link>
       </div>
     );
   }
@@ -158,7 +158,7 @@ function MatchPubs({ id }: { id: number }) {
         <h1 className="text-2xl font-bold">{f.home_name} v {f.away_name}</h1>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <ChannelBadge f={f} />
-          <a href={LISTINGS_URL} target="_blank" rel="noopener noreferrer" className="text-xs text-muted underline">
+          <a href={LISTINGS_URL} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-xs text-muted underline">
             Check the TV listings
           </a>
         </div>
@@ -176,7 +176,7 @@ function MatchPubs({ id }: { id: number }) {
             <select
               value={keyOf(centre)}
               onChange={(e) => setCentre(centres.find((c) => keyOf(c) === e.target.value) ?? centre)}
-              className="w-full rounded border border-line bg-card px-2 py-2 text-base"
+              className="h-12 w-full rounded-xl border border-line bg-card px-3 text-base"
             >
               {centres.map((c) => (
                 <option key={keyOf(c)} value={keyOf(c)}>{c.label}</option>
