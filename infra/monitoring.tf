@@ -178,17 +178,20 @@ resource "aws_cloudwatch_metric_alarm" "db_memory" {
   ok_actions          = local.alarm_actions
 }
 
-# Swapping is the clearer sign that the database is short of memory.
+# Swap on a 1 GB db.t4g.micro normally sits at 200 to 300 MB: Postgres moves
+# idle pages to disk once and they stay there, which costs nothing. Only alarm
+# when it climbs well past that for half an hour. db-memory (above) is the
+# alarm that says the database is really short of memory.
 resource "aws_cloudwatch_metric_alarm" "db_swap" {
   alarm_name          = "${local.name}-db-swap"
-  alarm_description   = "Database is using more than 50 MB of swap for 15 minutes: it is short of memory."
+  alarm_description   = "Database swap has been over 400 MB for 30 minutes (normal is 200 to 300 MB). Check whether SwapUsage is still rising and FreeableMemory is low; if both, it needs more memory."
   namespace           = "AWS/RDS"
   metric_name         = "SwapUsage"
   dimensions          = { DBInstanceIdentifier = aws_db_instance.main.identifier }
   statistic           = "Average"
   period              = 300
-  evaluation_periods  = 3
-  threshold           = 50 * 1024 * 1024
+  evaluation_periods  = 6
+  threshold           = 400 * 1024 * 1024
   comparison_operator = "GreaterThanThreshold"
   alarm_actions       = local.alarm_actions
   ok_actions          = local.alarm_actions
