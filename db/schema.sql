@@ -135,14 +135,14 @@ on conflict (category) do update set weight = excluded.weight;
 -- Tuning knobs, one row.
 create table if not exists rating_settings (
   id              boolean primary key default true check (id),
-  prior_reviews   numeric not null default 3,    -- smoothing: pretend every pub has this many "average" reviews
+  prior_reviews   numeric not null default 1,    -- smoothing: pretend every pub has this many "average" reviews
   half_life_days  numeric not null default 365,  -- a review counts half as much after this long
   min_reviews     integer not null default 1,    -- show stars from this many reviews
   sightline_cap   numeric not null default 1     -- overall can be at most this far above sightlines
 );
 -- Settings are applied on every deploy: change them here.
 insert into rating_settings (id, prior_reviews, half_life_days, min_reviews, sightline_cap)
-values (true, 3, 365, 1, 1)
+values (true, 1, 365, 1, 1)
 on conflict (id) do update set
   prior_reviews = excluded.prior_reviews, half_life_days = excluded.half_life_days,
   min_reviews = excluded.min_reviews, sightline_cap = excluded.sightline_cap;

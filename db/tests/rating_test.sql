@@ -62,13 +62,14 @@ begin
   select * into g from pub_scores where pub_id = (select id from ids where k = 'g');
   select * into h from pub_scores where pub_id = (select id from ids where k = 'h');
 
-  -- 1. One perfect review gets stars straight away, but its score is pulled well below 5.
+  -- 1. One perfect review gets stars straight away. With prior_reviews = 1 it
+  --    counts for half the score, so it is pulled part of the way, not all the
+  --    way, towards the area average.
   assert a.stars is not null, 'A should have stars from its first review';
-  assert a.score < 4.5, format('A score should be smoothed well below 5, got %s', a.score);
+  assert a.score < 4.75 and a.score > 4, format('A score should be about halfway between the area average and 5, got %s', a.score);
 
-  -- 2. Twenty 4s rank level with or above a single 5: the smoothing keeps A's
-  --    stars no higher than B's, and the API breaks ties on review count.
-  assert a.stars <= b.stars, format('A (%s stars) should not outrank B (%s stars)', a.stars, b.stars);
+  -- 2. Twenty 4s give 4 stars. A single review counts for more than it used to,
+  --    so one 5 can now outrank them; more reviews still pull it back.
   assert b.stars = 4, format('B should be 4 stars, got %s', b.stars);
 
   -- 3. Great everything but no view: capped at sightlines + 1.
