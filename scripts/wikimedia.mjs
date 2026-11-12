@@ -32,15 +32,28 @@ export function commonsFileFromTags(tags = {}) {
 
 const stripHtml = (s) => String(s ?? "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
 
-async function getJson(fetchFn, url) {
-  const res = await fetchFn(url, { headers: { "user-agent": UA, "api-user-agent": UA } });
-  if (!res.ok) throw new Error(`${new URL(url).host} returned ${res.status}`);
-  return res.json();
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// One API call. With retries, a "slow down" (429) or a server error waits and
+// tries again: as long as Retry-After asks, or 5 s, 10 s, 15 s ... otherwise.
+async function getJson(fetchFn, url, { retries = 0, pauseMs = 0 } = {}) {
+  for (let attempt = 0; ; attempt++) {
+    if (pauseMs) await sleep(pauseMs);
+    const res = await fetchFn(url, { headers: { "user-agent": UA, "api-user-agent": UA } });
+    if (res.ok) return res.json();
+    const busy = res.status === 429 || res.status >= 500;
+    if (!busy || attempt >= retries) throw new Error(`${new URL(url).host} returned ${res.status}`);
+    const wait = Number(res.headers.get("retry-after"));
+    await sleep(Number.isFinite(wait) && wait > 0 ? Math.min(wait, 120) * 1000 : 5000 * (attempt + 1));
+  }
 }
 
 // Adds info.photo to pubs that have a usable Commons photo. elements[i] is the
 // OpenStreetMap element pubs[i] came from. Never throws: photos are a bonus.
-export async function attachWikimediaPhotos(pubs, elements, fetchFn = fetch) {
+// The monthly UK load makes hundreds of calls, so it passes { retries, pauseMs }
+// to go gently; Wikimedia answers 429 to bursts. The on-demand import makes a
+// few calls inside a Lambda time limit, so by default there is no waiting.
+export async function attachWikimediaPhotos(pubs, elements, fetchFn = fetch, opts = {}) {
   try {
     const fileFor = new Map(); // index -> "File:..."
     const wikidataFor = new Map(); // index -> "Q123"
@@ -54,7 +67,7 @@ export async function attachWikimediaPhotos(pubs, elements, fetchFn = fetch) {
     const qids = [...new Set(wikidataFor.values())];
     const p18 = new Map();
     for (const ids of chunks(qids, BATCH)) {
-      const d = await getJson(fetchFn, `https://www.wikidata.org/w/api.php?action=wbgetentities&props=claims&format=json&ids=${ids.join("|")}`);
+      const d = await getJson(fetchFn, `https://www.wikidata.org/w/api.php?action=wbgetentities&props=claims&format=json&ids=${ids.join("|")}`, opts);
       for (const [q, ent] of Object.entries(d.entities ?? {})) {
         const v = ent?.claims?.P18?.[0]?.mainsnak?.datavalue?.value;
         if (typeof v === "string") p18.set(q, normaliseTitle(v));
@@ -69,6 +82,7 @@ export async function attachWikimediaPhotos(pubs, elements, fetchFn = fetch) {
       const d = await getJson(
         fetchFn,
         `https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=800&titles=${encodeURIComponent(batch.join("|"))}`,
+        opts,
       );
       const renamed = new Map((d.query?.normalized ?? []).map((n) => [n.to, n.from]));
       for (const page of Object.values(d.query?.pages ?? {})) {

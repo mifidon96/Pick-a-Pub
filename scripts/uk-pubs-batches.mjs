@@ -28,7 +28,8 @@ if (pubs.length < 20000) throw new Error(`Only ${pubs.length} pubs found; expect
 // The lookup reports a failure as 0 photos. Loading then would remove every
 // pub's existing photo until next month, so stop instead and keep last month's.
 if (!process.argv.includes("--no-photos")) {
-  const n = await attachWikimediaPhotos(pubs, elements);
+  // About 400 calls, one a second, waiting and retrying if Wikimedia asks us to slow down.
+  const n = await attachWikimediaPhotos(pubs, elements, fetch, { retries: 6, pauseMs: 1000 });
   const candidates = elements.filter((e) => e.tags?.wikidata || e.tags?.wikimedia_commons || e.tags?.image).length;
   console.log(`${n} Wikimedia photos found (${candidates} pubs have a photo tag)`);
   if (candidates > 100 && n === 0) throw new Error("Wikimedia photo lookup failed. Stopping before loading anything.");
