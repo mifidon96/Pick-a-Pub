@@ -9,7 +9,7 @@ import { setFixtures } from "./fixtures";
 import { listReports, moderateReview } from "./moderation";
 import { renderPages } from "./pages";
 import { decidePhoto, listPendingPhotos, listPhotosToCopy, setPhotoCopies } from "./photos";
-import { claimTile, importPubs, pubCount, tileStatus, type PubInput } from "./pubs";
+import { claimTile, importPubs, markTiles, pubCount, tileStatus, type PubInput } from "./pubs";
 
 export type { PubInput } from "./pubs";
 
@@ -23,6 +23,7 @@ export type AdminEvent =
   | { action: "import_pubs"; pubs: PubInput[]; tile?: string }
   | { action: "tile_status"; tile: string }
   | { action: "claim_tile"; tile: string }
+  | { action: "mark_tiles"; tiles: { tile: string; pub_count: number }[] }
   | { action: "list_photos_to_copy"; limit?: number }
   | { action: "set_photo_copies"; results: { id: number; key?: string; gone?: boolean }[] }
   | { action: "list_pending_photos" }
@@ -54,6 +55,7 @@ const actions: { [A in Action]: ActionFn<A> } = {
   pub_count: pubCount,
   claim_tile: claimTile,
   tile_status: tileStatus,
+  mark_tiles: markTiles, // after the monthly UK load
 
   // Our own verdicts from content/pubs.yaml (admin/content.ts)
   apply_content: applyContent,

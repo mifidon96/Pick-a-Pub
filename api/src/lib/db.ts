@@ -29,6 +29,10 @@ export function db(): Pool {
     ssl: process.env.PGSSL === "1" || iam ? true : undefined,
     max: 2,
     idleTimeoutMillis: 30_000,
+    // No JIT compiling. The pub_scores view makes the planner think list
+    // queries are expensive, so with every UK pub loaded Postgres spent about
+    // 2 s compiling a query that runs in 10 ms.
+    options: "-c jit=off",
   });
   // An idle connection can be dropped by the server (or by a frozen Lambda
   // waking up). Without a listener that would crash the process; the pool

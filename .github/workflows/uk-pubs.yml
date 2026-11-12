@@ -1,0 +1,77 @@
+# Loads every pub and bar in the UK into the database once a month, so a
+# search anywhere is instant instead of waiting up to a minute for
+# OpenStreetMap. The on-demand import stays as a fallback for anywhere missed.
+#
+#   1. Download Geofabrik's UK extract of OpenStreetMap (about 2 GB).
+#   2. osmium picks out the pubs and bars; scripts/uk-pubs-batches.mjs turns them into
+#      batches (same shape and ids as the on-demand import) and adds photos.
+#   3. scripts/load-uk-pubs.sh loads dev, then prod. Prod waits for approval,
+#      the same as a deploy.
+#
+# Also runs on demand: Actions > Load all UK pubs > Run workflow.
+name: Load all UK pubs
+
+on:
+  schedule:
+    - cron: "17 4 2 * *" # 04:17 UTC on the 2nd of each month
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uk-pubs
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    name: Extract UK pubs
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v7
+        with: { node-version: 22 }
+      - name: Install osmium
+        run: sudo apt-get update -q && sudo apt-get install -y -q osmium-tool
+      - name: Download the UK map data
+        run: curl -fsSL --retry 3 -o uk.osm.pbf https://download.geofabrik.de/europe/united-kingdom-latest.osm.pbf
+      - name: Pick out pubs and bars
+        run: |
+          osmium tags-filter uk.osm.pbf nwr/amenity=pub,bar -o pubs.osm.pbf
+          osmium export pubs.osm.pbf -f geojsonseq -a type,id \
+            --geometry-types=point,linestring,polygon -o pubs.geojsonseq
+          rm uk.osm.pbf
+      - name: Turn them into batches (with Wikimedia photos)
+        run: node scripts/uk-pubs-batches.mjs pubs.geojsonseq out
+      - uses: actions/upload-artifact@v7
+        with:
+          name: uk-pubs
+          path: out/
+          retention-days: 3
+
+  load:
+    name: Load ${{ matrix.environment }}
+    needs: extract
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      max-parallel: 1 # dev first; prod only if dev worked
+      matrix:
+        environment: [dev, prod]
+    environment: ${{ matrix.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with: { persist-credentials: false }
+      - uses: actions/download-artifact@v8
+        with: { name: uk-pubs, path: out }
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/pickapub-github-deploy-${{ matrix.environment }}
+          aws-region: eu-west-2
+      - name: Load the pubs
+        run: ./scripts/load-uk-pubs.sh out "${{ matrix.environment }}"
