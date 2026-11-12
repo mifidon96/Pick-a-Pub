@@ -39,7 +39,7 @@ export async function fixturePubs(req: Req, id: number): Promise<Res> {
   const fixture = f.rows[0];
   const col = { sky: "s.shows_sky", tnt: "s.shows_tnt", amazon: "s.shows_amazon" }[fixture.channel as string];
   const has = col ?? "null::boolean";
-  const pubs = await nearbyPubs({
+  const { pubs } = await nearbyPubs({
     lat, lng, radius,
     where: "",
     extraCols: `${has} as has_channel`,
