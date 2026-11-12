@@ -183,17 +183,24 @@ API_URL="$(tf_out api_url)" COGNITO_AUTHORITY="$(tf_out cognito_authority)" COGN
 done
 cat "$WEB/config.js"
 
-step "Writing sitemap.xml and robots.txt"
-node "$ROOT/scripts/sitemap.mjs" "$(tf_out api_url)" "$SITE_URL" "$WEB" \
-  || echo "Could not write the sitemap; carrying on."
+step "Writing robots.txt"
+node "$ROOT/scripts/robots.mjs" "$SITE_URL" "$WEB" "$ENV"
 
 step "Uploading the website"
-aws s3 sync "$WEB" "s3://$(tf_out web_bucket)" --delete --only-show-errors
+# pubs/, football-pubs/ and sitemap.xml are written by the admin Lambda (next
+# step), not the build, so --delete must leave them alone.
+aws s3 sync "$WEB" "s3://$(tf_out web_bucket)" --delete --only-show-errors \
+  --exclude "pubs/*" --exclude "football-pubs/*" --exclude "sitemap.xml"
 # Settings and version must never be cached, or a browser could pair new code
 # with the old settings.
 for f in config.js version.json; do
   aws s3 cp "$WEB/$f" "s3://$(tf_out web_bucket)/$f" --cache-control "no-cache" --only-show-errors
 done
+
+step "Building the pub and area pages for search engines"
+tmp="$(mktemp)"; echo '{"action":"render_pages"}' > "$tmp"
+admin_invoke "$tmp"; rm -f "$tmp"
+
 aws cloudfront create-invalidation --distribution-id "$(tf_out cloudfront_distribution_id)" \
   --paths '/*' --query Invalidation.Id --output text >/dev/null
 

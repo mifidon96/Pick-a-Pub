@@ -7,6 +7,7 @@ import type { FixtureInput } from "../services/fixtures";
 import { applyContent } from "./content";
 import { setFixtures } from "./fixtures";
 import { listReports, moderateReview } from "./moderation";
+import { renderPages } from "./pages";
 import { decidePhoto, listPendingPhotos, listPhotosToCopy, setPhotoCopies } from "./photos";
 import { claimTile, importPubs, pubCount, tileStatus, type PubInput } from "./pubs";
 
@@ -29,6 +30,7 @@ export type AdminEvent =
   | { action: "reject_photo"; id: string }
   | { action: "apply_content"; entries: ContentEntry[] }
   | { action: "set_fixtures"; fixtures: FixtureInput[] }
+  | { action: "render_pages" }
   | { action: "stats"; days?: number }
   | { action: "list_reports" }
   | { action: "hide_review"; id: number }
@@ -65,6 +67,9 @@ const actions: { [A in Action]: ActionFn<A> } = {
 
   // Matches (admin/fixtures.ts)
   set_fixtures: setFixtures,
+
+  // Pages for search engines, nightly and after each deploy (admin/pages.ts)
+  render_pages: renderPages,
 
   // Page counts (services/analytics.ts)
   stats: (e) => stats(Math.min(Math.max(Number(e.days) || 7, 1), 90)),

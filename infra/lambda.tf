@@ -33,6 +33,10 @@ locals {
     # Photos: uploads go to this bucket, approved ones are served by CloudFront.
     PHOTOS_BUCKET   = aws_s3_bucket.photos.bucket
     PHOTOS_BASE_URL = local.site_url
+    # Pub and area pages for search engines are written here (pages.tf).
+    WEB_BUCKET = aws_s3_bucket.web.bucket
+    SITE_URL   = local.site_url
+    SITE_ENV   = var.environment
     # Makes Node trust the RDS certificate authority shipped with the Lambda runtime.
     NODE_EXTRA_CA_CERTS = "/var/runtime/ca-cert.pem"
   }

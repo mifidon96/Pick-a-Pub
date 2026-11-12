@@ -36,6 +36,7 @@ function PubDetailView() {
         description: data.pub.stars !== null
           ? `${data.pub.name} is rated ${data.pub.stars.toFixed(1)} out of 5 for watching football by ${data.pub.review_count} fan${data.pub.review_count === 1 ? "" : "s"}. View of the screen, sound, crowd and seats.`
           : `Is ${data.pub.name} good for watching football? Ratings for the view of the screen, sound, crowd and seats.`,
+        canonical: data.pub.page,
       }
     : null);
 

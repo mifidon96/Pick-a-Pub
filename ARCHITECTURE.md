@@ -90,6 +90,11 @@ importer claims that area's "tile" (so two people searching at once don't import
 twice), fetches pubs from OpenStreetMap in the background, and hands them to the
 admin Lambda to save. The page checks `/areas/status` until it's ready.
 
+**For search engines:** the app's pages load their content in the browser, so the
+admin Lambda also writes a plain HTML page for each reviewed pub and each area
+into the website bucket every night (`/pubs/...`, `/football-pubs/...`, and
+`sitemap.xml`). CloudFront serves them like any other file.
+
 ## The pieces
 
 | Piece | Code | Why this way |

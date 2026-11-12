@@ -376,8 +376,16 @@ or the browser will block it.
   (e.g. "The Bedford: football rating"). `web/lib/pageInfo.ts`.
 - **Share preview**: `web/public/og.png` shows in WhatsApp, iMessage and social links.
   Shared links use the live address, which `deploy.sh` puts in for each environment.
-- **sitemap.xml and robots.txt** are written by `scripts/sitemap.mjs` on every deploy,
-  listing the featured areas and their pubs.
+- **Pages search engines can read.** The app loads its content in the browser, which
+  search engines index poorly. So every pub with a review or our verdict also gets a
+  plain HTML page at `/pubs/<name>-<id>/`, and every featured area one at
+  `/football-pubs/<area>/`, with the rating marked up for search results. The admin
+  Lambda builds them and `sitemap.xml` into the website bucket every night and at the
+  end of each deploy (`api/src/admin/pages.ts`, `infra/pages.tf`; styles in
+  `web/public/pages.css`). To rebuild by hand:
+  `aws lambda invoke --function-name pickapub-prod-admin --cli-binary-format raw-in-base64-out --payload '{"action":"render_pages"}' out.json`
+- **robots.txt** is written by `scripts/robots.mjs` on every deploy. Only prod is open
+  to search engines; dev is closed so it does not compete as a copy.
 - **Page counts without cookies** (so no cookie banner): each page view records the page,
   the referring site and a visitor code that changes daily. No IP address is stored,
   nobody can be followed across days, rows go after 90 days, and Do Not Track is
