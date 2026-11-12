@@ -85,10 +85,15 @@ Someone opens the Balham list:
 6. JSON goes back. A thrown `HttpError` becomes a 4xx; anything else is logged
    and becomes a 500, which sets off an alarm.
 
-Searching somewhere new adds a step: the page calls `POST /areas/import`, the
-importer claims that area's "tile" (so two people searching at once don't import
-twice), fetches pubs from OpenStreetMap in the background, and hands them to the
-admin Lambda to save. The page checks `/areas/status` until it's ready.
+Every UK pub is already in the database: a monthly GitHub Actions workflow
+(`uk-pubs.yml`) downloads the UK map extract, picks out pubs and bars, and loads
+them through the admin Lambda (`import_pubs`, then `mark_tiles`).
+
+If an area was missed or has gone stale, searching there adds a step: the page
+calls `POST /areas/import`, the importer claims that area's "tile" (so two
+people searching at once don't import twice), fetches pubs from OpenStreetMap in
+the background, and hands them to the admin Lambda to save. The page checks
+`/areas/status` until it's ready.
 
 **For search engines:** the app's pages load their content in the browser, so the
 admin Lambda also writes a plain HTML page for each reviewed pub and each area
@@ -181,9 +186,13 @@ These are the choices worth talking through:
 - **Serverless plus one database.** Lambda and API Gateway cost nothing when
   idle. RDS (`db.t4g.micro`, single AZ) is the only always-on cost, about £12 a
   month. Multi-AZ would double that for availability this site doesn't need yet.
-- **Import on demand, not all of the UK up front.** It keeps the database small,
-  and the tile claim stops duplicate imports. The trade-off is a wait of up to a
-  minute the first time an area is searched.
+- **Load all of the UK monthly, import on demand as a fallback.** About 50,000
+  pubs is small for Postgres, and a first search no longer waits up to a minute
+  on OpenStreetMap's busy public servers. The load runs in GitHub Actions, so
+  there is no extra AWS cost. The on-demand import covers gaps between loads.
+- **JIT is off for app connections** (`lib/db.ts`). With every pub loaded, the
+  planner's cost estimate for list queries tipped Postgres into JIT compiling,
+  which took about 2 s for a query that runs in 10 ms.
 - **Build once, promote.** One artifact, runtime config per environment. No
   "works on dev, different on prod" builds.
 - **Same Terraform for both environments.** Differences live in `tfvars`

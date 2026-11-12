@@ -94,6 +94,21 @@ export async function claimTile(event: { tile: string }) {
   return { claimed: rows.length === 1 };
 }
 
+// Marks many tiles as freshly imported at once. Used by the monthly UK load
+// (scripts/uk-pubs-batches.mjs), which has already loaded every pub in them, so
+// searches there no longer start an on-demand import.
+export async function markTiles(event: { tiles: { tile: string; pub_count: number }[] }) {
+  const tiles = (event.tiles ?? []).filter((t) => /^-?\d{1,4}_-?\d{1,4}$/.test(t.tile) && Number.isInteger(t.pub_count));
+  if (!tiles.length) return { ok: true, marked: 0 };
+  await db().query(
+    `insert into import_tiles (tile, imported_at, pub_count, started_at)
+     select t.tile, now(), t.pub_count, null from unnest($1::text[], $2::int[]) as t(tile, pub_count)
+     on conflict (tile) do update set imported_at = now(), pub_count = excluded.pub_count, started_at = null`,
+    [tiles.map((t) => t.tile), tiles.map((t) => t.pub_count)],
+  );
+  return { ok: true, action: "mark_tiles", marked: tiles.length };
+}
+
 // Has this tile been imported recently enough?
 export async function tileStatus(event: { tile: string }) {
   const { rows } = await db().query(

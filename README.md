@@ -136,11 +136,28 @@ file without deploying: `cd api && npm run admin -- content-json ../content/pubs
 
 ## Search anywhere
 
-The search box finds any UK town, area or postcode (postcodes.io). The first
-search in a new area imports its pubs from OpenStreetMap in the background
-(about 30 to 60 seconds), using the `importer` Lambda, which runs outside the
-private network so no NAT gateway is needed. Areas are 4 km tiles, re-imported
-at most every 30 days. UK only, and the import route is throttled.
+The search box finds any UK town, area or postcode (postcodes.io). Every pub
+and bar in the UK (about 50,000) is loaded once a month by the **Load all UK
+pubs** workflow (`.github/workflows/uk-pubs.yml`), so searches are instant:
+
+1. Downloads Geofabrik's UK extract of OpenStreetMap and picks out pubs and
+   bars with `osmium`.
+2. `scripts/uk-pubs-batches.mjs` turns them into batches of 1,500, with
+   Wikimedia photos.
+3. `scripts/load-uk-pubs.sh` loads dev, then prod (prod waits for approval),
+   marks every area as freshly imported, copies new photos and rebuilds the
+   search engine pages.
+
+It runs on the 2nd of each month, or by hand: Actions > Load all UK pubs > Run
+workflow. To load one environment from your laptop instead, download the
+`uk-pubs` artifact from a run and use `AWS_PROFILE=personal
+./scripts/load-uk-pubs.sh out dev`.
+
+Anywhere the monthly load missed, or not refreshed for 40 days, falls back to
+the on-demand import: the first search imports that area from OpenStreetMap in
+the background (30 to 60 seconds) using the `importer` Lambda, which runs
+outside the private network so no NAT gateway is needed. Areas are 4 km tiles.
+UK only, and the import route is throttled.
 
 ## Photos
 
