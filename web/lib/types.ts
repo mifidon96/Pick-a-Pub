@@ -42,7 +42,8 @@ export type Verdict = {
 
 // credit: "Pick-a-Pub", an uploader's name, or "Author, Licence" for Wikimedia photos (with link to the source page)
 export type Photo = { url: string; credit: string | null; link?: string; licence_url?: string };
-export type PubDetail = Pub & { ref: string; info: PubInfo; verdict: Verdict | null; photos: Photo[] };
+// page: the pub's own page for search engines (/pubs/<name>-<id>/), if it has one.
+export type PubDetail = Pub & { ref: string; info: PubInfo; verdict: Verdict | null; photos: Photo[]; page: string | null };
 
 // Quick reviews leave everything but QUICK_KEYS blank (null).
 export type Review = { [K in ScoreKey]: number | null } & Facts & {

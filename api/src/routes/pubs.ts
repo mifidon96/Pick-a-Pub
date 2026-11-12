@@ -1,6 +1,7 @@
 import { db } from "../lib/db";
 import { bad, notFound, num, type Req, type Res } from "../lib/http";
 import { REVIEW_COLS, SCORES, TEAM_IDS } from "../lib/ratings";
+import { hasPage, pubPagePath } from "../services/pages";
 import { editorialPhotoUrl, photoKeyUrl, publicPhotoUrl } from "../services/photos";
 
 // Our own details (content/pubs.yaml) win over what reviewers say for fans.
@@ -122,6 +123,14 @@ export async function nearbyPubs(o: {
 
 // GET /pubs/{id}  One pub with its scores, photos and latest reviews.
 export async function getPub(_req: Req, id: number): Promise<Res> {
+  const found = await loadPub(id);
+  if (!found) throw notFound("Pub not found");
+  return { status: 200, body: found };
+}
+
+// Everything shown about one pub. Also used to build the search-engine pages
+// (admin/pages.ts). `page` is that page's address, when the pub has one.
+export async function loadPub(id: number) {
   const pub = await db().query(
     `select p.id, p.name, p.address, p.postcode, p.lat, p.lng,
             p.source || ':' || p.source_id as ref,
@@ -137,7 +146,7 @@ export async function getPub(_req: Req, id: number): Promise<Res> {
       where p.id = $1`,
     [id],
   );
-  if (!pub.rows[0]) throw notFound("Pub not found");
+  if (!pub.rows[0]) return null;
   const { editorial_photos, ...pubRow } = pub.rows[0];
   const uploads = await db().query(
     `select ph.id, u.display_name from pub_photos ph left join users u on u.id = ph.user_id
@@ -162,5 +171,6 @@ export async function getPub(_req: Req, id: number): Promise<Res> {
       limit 30`,
     [id],
   );
-  return { status: 200, body: { pub: { ...pubRow, photos }, reviews: reviews.rows } };
+  const page = hasPage(pubRow) ? pubPagePath(pubRow.name, pubRow.id) : null;
+  return { pub: { ...pubRow, photos, page }, reviews: reviews.rows };
 }

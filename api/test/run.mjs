@@ -15,6 +15,7 @@ const TESTS = {
   account: AWS,
   reviews: [],
   paging: [],
+  pages: AWS,
   fixtures: ["@aws-sdk/client-lambda", ...AWS],
   analytics: [],
   dbuser: [],
