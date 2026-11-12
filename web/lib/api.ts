@@ -26,12 +26,14 @@ const json = (headers: HeadersInit, body: unknown) => ({
 
 // --- Pubs -------------------------------------------------------------------
 
-export function listPubs(opts: { lat: number; lng: number; radiusM: number; sort: Sort; vibe: Vibe | ""; has: Filter[]; fans?: string }) {
+// One page of pubs (20), reviewed pubs first, plus the total for "Page 1 of 3".
+export function listPubs(opts: { lat: number; lng: number; radiusM: number; sort: Sort; vibe: Vibe | ""; has: Filter[]; fans?: string; page?: number }) {
   const q = new URLSearchParams({ lat: String(opts.lat), lng: String(opts.lng), radius_m: String(opts.radiusM), sort: opts.sort });
+  if (opts.page && opts.page > 1) q.set("page", String(opts.page));
   if (opts.fans) q.set("fans", opts.fans);
   if (opts.vibe) q.set("vibe", opts.vibe);
   if (opts.has.length) q.set("has", opts.has.join(","));
-  return request<{ pubs: Pub[] }>(`/pubs?${q}`);
+  return request<{ pubs: Pub[]; total: number; page: number; page_size: number }>(`/pubs?${q}`);
 }
 
 export function getPub(id: number) {

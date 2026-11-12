@@ -24,6 +24,11 @@ const FILTERS: Record<string, string> = {
 };
 // Sort by any scored category (best first), as well as stars or distance.
 const SORTABLE = new Set<string>([...SCORES, "food"]);
+// Pubs per page in the list.
+export const PAGE_SIZE = 20;
+// Pubs with at least one review always come first, whatever the sort: an
+// unreviewed pub may not even show football yet.
+const REVIEWED_FIRST = "coalesce(s.review_count, 0) > 0 desc";
 
 // The centre and radius from ?lat=&lng=&radius_m= (5 km by default: most fans
 // in the survey would travel 20 minutes or more).
@@ -35,10 +40,12 @@ export function searchArea(req: Req) {
   };
 }
 
-// GET /pubs?lat=&lng=&radius_m=&sort=stars|distance|<category>&vibe=calm|lively&has=beer_garden,dog_friendly&fans=<team>
+// GET /pubs?lat=&lng=&radius_m=&sort=stars|distance|<category>&vibe=calm|lively&has=beer_garden,dog_friendly&fans=<team>&page=1
+// Returns one page of 20 plus the total, so the website can show "Page 1 of 3".
 export async function listPubs(req: Req): Promise<Res> {
   const { lat, lng, radius } = searchArea(req);
-  // Rated pubs first (by stars, then the unrounded score), then unrated pubs by distance.
+  const page = Math.floor(num(req.query.page, "page", 1, 100, 1));
+  // Reviewed pubs first; within each group, the chosen sort.
   const sort = req.query.sort ?? "stars";
   const order =
     sort === "distance" ? "distance_m" :
@@ -57,18 +64,31 @@ export async function listPubs(req: Req): Promise<Res> {
   const fans = req.query.fans ?? "";
   if (fans && !TEAM_IDS.has(fans)) throw bad("unknown team");
 
-  const pubs = await nearbyPubs({
+  const { pubs, total } = await nearbyPubs({
     lat, lng, radius,
     where: `${vibe}\n        ${filters}\n        ${fans ? `and ${FAN_TEAM} = $4` : ""}`,
-    order,
+    order: `${REVIEWED_FIRST}, ${order}, p.id`,
     params: fans ? [fans] : [],
+    limit: PAGE_SIZE,
+    offset: (page - 1) * PAGE_SIZE,
   });
-  return { status: 200, body: { pubs } };
+  return { status: 200, body: { pubs, total, page, page_size: PAGE_SIZE } };
 }
 
-// Pubs within radius of a point, with scores and a cover photo. Extra params start at $4.
+// Pubs within radius of a point, with scores and a cover photo, plus how many
+// match in total (for paging). Extra params start at $4.
 // Also used by "Where's it showing?" (routes/fixtures.ts).
-export async function nearbyPubs(o: { lat: number; lng: number; radius: number; where: string; order: string; params: unknown[]; extraCols?: string }) {
+export async function nearbyPubs(o: {
+  lat: number; lng: number; radius: number; where: string; order: string; params: unknown[];
+  extraCols?: string; limit?: number; offset?: number;
+}) {
+  const from = `from pubs p
+       left join pub_scores s on s.pub_id = p.id
+       left join pub_editorial e on e.pub_id = p.id
+      where earth_box(ll_to_earth($1, $2), $3) @> ll_to_earth(p.lat, p.lng)
+        and earth_distance(ll_to_earth($1, $2), ll_to_earth(p.lat, p.lng)) <= $3
+        ${o.where}`;
+  const params = [o.lat, o.lng, o.radius, ...o.params];
   const { rows } = await db().query(
     `select p.id, p.name, p.address, p.postcode, p.lat, p.lng,
             round(earth_distance(ll_to_earth($1, $2), ll_to_earth(p.lat, p.lng)))::int as distance_m,
@@ -79,24 +99,25 @@ export async function nearbyPubs(o: { lat: number; lng: number; radius: number; 
             p.info->'photo'->>'url' as wiki_photo,
             p.info->'photo'->>'key' as wiki_copy,
             ${o.extraCols ? `${o.extraCols},` : ""}
+            count(*) over ()::int as total_count,
             ${SCORE_COLS}
-       from pubs p
-       left join pub_scores s on s.pub_id = p.id
-       left join pub_editorial e on e.pub_id = p.id
-      where earth_box(ll_to_earth($1, $2), $3) @> ll_to_earth(p.lat, p.lng)
-        and earth_distance(ll_to_earth($1, $2), ll_to_earth(p.lat, p.lng)) <= $3
-        ${o.where}
+       ${from}
       order by ${o.order}
-      limit 50`,
-    [o.lat, o.lng, o.radius, ...o.params],
+      limit ${o.limit ?? 50} offset ${o.offset ?? 0}`,
+    params,
   );
+  // An empty page past the end has no rows to carry the total, so count separately.
+  const total: number = rows[0]
+    ? rows[0].total_count
+    : o.offset ? (await db().query(`select count(*)::int as n ${from}`, params)).rows[0].n : 0;
   // Cover photo: ours first, then an approved upload, then Wikimedia.
-  return rows.map(({ editorial_photo, upload_photo, wiki_photo, wiki_copy, ...p }) => ({
+  const pubs = rows.map(({ editorial_photo, upload_photo, wiki_photo, wiki_copy, total_count: _t, ...p }) => ({
     ...p,
     photo: editorial_photo ? editorialPhotoUrl(editorial_photo)
       : upload_photo ? publicPhotoUrl(upload_photo)
       : photoKeyUrl(wiki_copy) ?? wiki_photo ?? null,
   }));
+  return { pubs, total };
 }
 
 // GET /pubs/{id}  One pub with its scores, photos and latest reviews.
