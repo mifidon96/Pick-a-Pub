@@ -54,4 +54,21 @@ assert.equal(calls.length, 2, "one Wikidata call and one Commons call");
 // Failures never break an import
 const n = await attachWikimediaPhotos(pubs as never, els, (async () => new Response("down", { status: 503 })) as never);
 assert.equal(n, 0);
+
+// The monthly load waits and retries when Wikimedia says slow down (429)
+let tries = 0;
+const busyOnce = (async (url: string) => {
+  if (tries++ === 0) return new Response("slow down", { status: 429, headers: { "retry-after": "1" } });
+  return fakeFetch(url);
+}) as unknown as typeof fetch;
+const fresh = pubs.map((p) => ({ ...p, info: {} }));
+calls.length = 0;
+const retried = await attachWikimediaPhotos(fresh as never, els, busyOnce, { retries: 2, pauseMs: 1 });
+assert.equal(retried, 2, "photos found after one 429");
+assert.equal(tries, 3, "the 429 call was tried again");
+
+// Without retries (the on-demand import), a 429 gives up straight away
+tries = 0;
+assert.equal(await attachWikimediaPhotos(fresh as never, els, busyOnce), 0);
+assert.equal(tries, 1);
 console.log("wikimedia tests passed");
