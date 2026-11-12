@@ -34,7 +34,7 @@ covered well elsewhere. Old food answers stay in the database.
 
 How a pub's stars are worked out (`pub_scores` view in `db/schema.sql`):
 1. Newer reviews count more: a review's weight halves every 365 days.
-2. Each category is smoothed towards the average of all pubs, as if every pub had 3 extra average reviews. One glowing review cannot top the chart.
+2. Each category is smoothed towards the average of all pubs, as if every pub had 1 extra average review. A pub's first review counts for half its score, so one review moves it a lot but not all the way.
 3. Overall = weighted sum of the categories.
 4. Capped at the pub's own view-of-a-screen score + 1. If you cannot see the TV, it cannot rate highly.
 5. Rounded to the nearest half star. Stars show from the first review; pubs with fewer than 3 reviews say the rating may change. Equal stars are ordered by number of reviews.
